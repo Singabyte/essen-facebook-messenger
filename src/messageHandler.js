@@ -363,14 +363,8 @@ async function sendButtonTemplate(recipientId, text, buttons) {
 
 // Send showroom info with buttons
 async function sendShowroomInfoWithButtons(recipientId) {
-  const showroomText = `🏢 Visit Our Showroom!
-📍 Location: 36 Jalan Kilang Barat, Singapore 159366
-🕒 Hours: Operating Daily 11am - 7pm
-📱 WhatsApp: +65 6019 0775
-✨ In-Store Benefits:
-- Complimentary refreshments
-- Free design consultation
-- Exclusive in-store discounts`;
+  // Facebook button templates have limited text space, so keep it concise
+  const showroomText = `🏢 ESSEN Showroom\n\n📍 36 Jalan Kilang Barat, S159366\n🕒 Daily: 11am-7pm\n📱 +65 6019 0775\n\n✨ Free consultation & refreshments!`;
 
   const buttons = [
     {
@@ -465,10 +459,21 @@ function parseAppointmentDetails(text) {
     phone: null
   };
   
-  // Parse date (tomorrow, today, specific dates)
+  // Parse date (tomorrow, today, specific dates, days of week)
   const tomorrow = /tomorrow/i.test(text);
   const today = /today/i.test(text);
-  const dateMatch = text.match(/(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?:\s+\d{2,4})?)/i);
+  
+  // Enhanced date patterns
+  const datePatterns = [
+    // Day of week (thursday, friday, etc)
+    /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
+    // Ordinal dates (1st August, 2nd Jan, etc)
+    /(\d{1,2}(?:st|nd|rd|th)\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*)/i,
+    // Regular dates (1 August, 25 Dec, etc)
+    /(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?:\s+\d{2,4})?)/i,
+    // Numeric dates (25/12, 01-08-2024, etc)
+    /(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/i
+  ];
   
   if (tomorrow) {
     const tmrw = new Date();
@@ -476,14 +481,27 @@ function parseAppointmentDetails(text) {
     details.date = tmrw.toLocaleDateString('en-SG');
   } else if (today) {
     details.date = new Date().toLocaleDateString('en-SG');
-  } else if (dateMatch) {
-    details.date = dateMatch[0];
+  } else {
+    // Try each date pattern
+    for (const pattern of datePatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        details.date = match[0];
+        break;
+      }
+    }
   }
   
-  // Parse time (11am-7pm format)
-  const timeMatch = text.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i);
+  // Parse time - more flexible pattern (handles "12pm", "12 pm", "12:30pm", etc)
+  const timeMatch = text.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm)|(?:noon|midnight))/i);
   if (timeMatch) {
-    details.time = timeMatch[0].toLowerCase();
+    let time = timeMatch[0].toLowerCase();
+    // Handle special cases
+    if (time === 'noon') time = '12pm';
+    if (time === 'midnight') time = '12am';
+    // Ensure space between number and am/pm for consistency
+    time = time.replace(/(\d)(am|pm)/i, '$1 $2');
+    details.time = time;
   }
   
   // Parse phone number (Singapore format)
@@ -531,8 +549,16 @@ async function handleAppointmentBooking(senderId, text, userInfo) {
   if (state && state.stage === 'awaiting_details') {
     const details = parseAppointmentDetails(text);
     
+    // Debug logging
+    console.log('Appointment parsing for:', text);
+    console.log('Parsed details:', details);
+    
     if (!details.date || !details.time) {
-      return "I need both a date and time for your visit. For example: 'Tomorrow at 2pm' or '25 Dec at 3:30pm'. We're open 11am-7pm daily.";
+      let missingInfo = [];
+      if (!details.date) missingInfo.push('date');
+      if (!details.time) missingInfo.push('time');
+      
+      return `I couldn't understand the ${missingInfo.join(' and ')}. Please try again with a clear date and time, like:\n• "Tomorrow at 2pm"\n• "Thursday 3pm"\n• "1st August at 12pm"\n\nWe're open 11am-7pm daily.`;
     }
     
     if (!isValidAppointmentTime(details.time)) {

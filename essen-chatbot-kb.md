@@ -21,8 +21,9 @@
 
 ## Showroom Information
 
-**Location**: Singapore (specific address to be provided by customer service team)
-**Operating Hours**: (To be specified based on current schedule)
+**Location**: 36 Jalan Kilang Barat, Singapore 159366 (ONLY ONE SHOWROOM)
+**Operating Hours**: Daily 11am - 7pm
+**Contact**: WhatsApp +65 6019 0775
 
 ### Showroom Features
 - Fully furnished room displays showcasing complete living spaces

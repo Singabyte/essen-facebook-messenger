@@ -82,10 +82,23 @@ function verifyWebhookSignature(req) {
   const elements = signature.split('=');
   const signatureHash = elements[1];
   
+  // Use raw body if available, otherwise stringify the parsed body
+  const bodyToVerify = req.rawBody || JSON.stringify(req.body);
+  
   const expectedHash = crypto
     .createHmac('sha256', process.env.APP_SECRET)
-    .update(JSON.stringify(req.body))
+    .update(bodyToVerify)
     .digest('hex');
+  
+  // Debug logging
+  if (signatureHash !== expectedHash) {
+    console.error('Signature verification failed:');
+    console.error('Received signature:', signatureHash);
+    console.error('Expected signature:', expectedHash);
+    console.error('APP_SECRET exists:', !!process.env.APP_SECRET);
+    console.error('Body type:', typeof bodyToVerify);
+    console.error('Body length:', bodyToVerify.length);
+  }
   
   return signatureHash === expectedHash;
 }
