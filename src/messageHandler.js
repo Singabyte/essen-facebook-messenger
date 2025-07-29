@@ -541,9 +541,36 @@ async function handleAppointmentBooking(senderId, text, userInfo) {
                           !/product|furniture|sofa|kitchen|bathroom/i.test(text);
   
   if (isBookingRequest && !state) {
-    // Start booking flow
-    appointmentBookingState.set(senderId, { stage: 'awaiting_details' });
-    return "Great! When would you like to visit us? Just let me know your preferred date and time (we're open 11am-7pm daily).";
+    // Check if the message already contains date and time
+    const details = parseAppointmentDetails(text);
+    
+    if (details.date && details.time) {
+      // Date and time already provided, proceed directly to booking
+      if (!isValidAppointmentTime(details.time)) {
+        appointmentBookingState.set(senderId, { stage: 'awaiting_details' });
+        return "Our showroom is open 11am-7pm daily. Please choose a time within these hours.";
+      }
+      
+      // Save appointment directly
+      try {
+        await saveAppointment(senderId, userInfo.name, details.date, details.time, details.phone);
+        
+        let confirmation = `Perfect! I've noted your visit for ${details.date} at ${details.time}. Looking forward to seeing you at our showroom! 📍 36 Jalan Kilang Barat`;
+        if (details.phone) {
+          confirmation += `\n\nWe'll WhatsApp you at ${details.phone} with a reminder.`;
+        }
+        
+        await logAnalytics('appointment_booked', senderId, { date: details.date, time: details.time });
+        return confirmation;
+      } catch (error) {
+        console.error('Error saving appointment:', error);
+        return "Sorry, I couldn't save your appointment. Please try again or call us directly at +65 6019 0775.";
+      }
+    } else {
+      // Start booking flow if date/time not provided
+      appointmentBookingState.set(senderId, { stage: 'awaiting_details' });
+      return "Great! When would you like to visit us? Just let me know your preferred date and time (we're open 11am-7pm daily).";
+    }
   }
   
   if (state && state.stage === 'awaiting_details') {
