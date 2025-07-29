@@ -67,6 +67,21 @@ function initDatabase() {
       if (err) console.error('Error creating analytics table:', err);
       else console.log('Analytics table ready');
     });
+    
+    // Appointments table
+    db.run(`CREATE TABLE IF NOT EXISTS appointments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT,
+      facebook_name TEXT,
+      appointment_date TEXT,
+      appointment_time TEXT,
+      phone_number TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`, (err) => {
+      if (err) console.error('Error creating appointments table:', err);
+      else console.log('Appointments table ready');
+    });
   });
 }
 
@@ -169,6 +184,34 @@ const dbHelpers = {
         (err) => {
           if (err) reject(err);
           else resolve();
+        }
+      );
+    });
+  },
+
+  // Save appointment
+  saveAppointment: (userId, facebookName, appointmentDate, appointmentTime, phoneNumber = null) => {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO appointments (user_id, facebook_name, appointment_date, appointment_time, phone_number) VALUES (?, ?, ?, ?, ?)',
+        [userId, facebookName, appointmentDate, appointmentTime, phoneNumber],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.lastID);
+        }
+      );
+    });
+  },
+
+  // Get user appointments
+  getUserAppointments: (userId) => {
+    return new Promise((resolve, reject) => {
+      db.all(
+        'SELECT * FROM appointments WHERE user_id = ? ORDER BY created_at DESC',
+        [userId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
         }
       );
     });

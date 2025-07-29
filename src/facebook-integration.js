@@ -46,45 +46,14 @@ async function setPersistentMenu() {
       composer_input_disabled: false,
       call_to_actions: [
         {
-          title: '🛍️ Browse Products',
-          type: 'postback',
-          payload: 'PRODUCTS'
-        },
-        {
-          title: '📍 Visit Showroom',
+          title: '📍 Showroom Details',
           type: 'postback',
           payload: 'SHOWROOM'
         },
         {
-          title: '🎨 Free Consultation',
-          type: 'postback',
-          payload: 'CONSULTATION'
-        },
-        {
-          title: '⭐ Best Sellers',
-          type: 'postback',
-          payload: 'BESTSELLERS'
-        },
-        {
-          title: '❓ Help',
-          type: 'nested',
-          call_to_actions: [
-            {
-              title: 'About ESSEN',
-              type: 'postback',
-              payload: 'ABOUT'
-            },
-            {
-              title: 'Delivery Info',
-              type: 'postback',
-              payload: 'DELIVERY'
-            },
-            {
-              title: 'Contact Support',
-              type: 'postback',
-              payload: 'CONTACT'
-            }
-          ]
+          title: '🌐 Visit Our Website',
+          type: 'web_url',
+          url: 'https://essen.sg'
         }
       ]
     }]

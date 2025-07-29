@@ -170,10 +170,10 @@ Example: ["View sofas", "Book consultation", "Showroom info"]`;
     }
     
     // Default ESSEN-specific quick replies
-    return ["View products", "Visit showroom", "Free consultation"];
+    return ["View products", "Visit showroom", "Book consultation"];
   } catch (error) {
     console.error('Error generating quick replies:', error);
-    return ["View products", "Visit showroom", "Free consultation"];
+    return ["View products", "Visit showroom", "Book consultation"];
   }
 }
 
