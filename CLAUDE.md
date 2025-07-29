@@ -68,10 +68,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Required in `.env`:
 - `PAGE_ACCESS_TOKEN` - Facebook Page access token
 - `VERIFY_TOKEN` - Webhook verification token
-- `APP_SECRET` - Facebook App secret
+- `APP_SECRET` - Facebook App secret (CRITICAL for webhook signature verification)
 - `GEMINI_API_KEY` - Google Gemini API key
 - `PORT` - Server port (default: 3000)
 - `DB_PATH` - SQLite database path
+
+Note: The Facebook error about `pages_manage_metadata` permission is normal - basic messaging functionality works without it.
 
 Admin interface (`admin-interface/server/.env`):
 - `JWT_SECRET` - Secret for JWT tokens
