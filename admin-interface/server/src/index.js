@@ -52,7 +52,15 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Create HTTP server
+const http = require('http');
+const server = http.createServer(app);
+
+// Initialize WebSocket
+const { initializeWebSocket } = require('./websocket');
+initializeWebSocket(server);
+
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Admin API server running on port ${PORT}`);
 });

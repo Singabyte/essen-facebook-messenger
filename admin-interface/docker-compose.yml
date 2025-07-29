@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  admin-interface:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - DB_PATH=/app/database/bot.db
+      - FRONTEND_URL=${FRONTEND_URL}
+    volumes:
+      - ../database:/app/database
+      - ..:/app/knowledge-base:ro
+    restart: unless-stopped
+    depends_on:
+      - bot
+
+  bot:
+    build: ../
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PAGE_ACCESS_TOKEN=${PAGE_ACCESS_TOKEN}
+      - VERIFY_TOKEN=${VERIFY_TOKEN}
+      - APP_SECRET=${APP_SECRET}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ../database:/app/database
+    restart: unless-stopped
+
+volumes:
+  database:

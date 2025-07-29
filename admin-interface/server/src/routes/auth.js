@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const queries = require('../db/queries');
 const { logAudit } = require('../db/connection');
+const authMiddleware = require('../middleware/auth');
 
 // Login
 router.post('/login', async (req, res) => {
@@ -70,6 +71,25 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: 'Error creating user', error: error.message });
+  }
+});
+
+// Validate token
+router.get('/validate', authMiddleware, async (req, res) => {
+  try {
+    const user = await queries.admin.findByUsername(req.user.username);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    
+    res.json({
+      user: {
+        id: user.id,
+        username: user.username
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error validating token', error: error.message });
   }
 });
 
