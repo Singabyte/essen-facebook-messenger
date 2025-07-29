@@ -286,183 +286,59 @@ async function sendTypingIndicator(recipientId, isTyping) {
 // ESSEN-specific message templates
 
 function getWelcomeMessage() {
-  return `Welcome to ESSEN Furniture Singapore! 🏠
+  return `Welcome to ESSEN Furniture! 🏠 We're your one-stop for furniture, kitchen & bathroom solutions.
 
-I'm here to help you transform your home with our premium furniture, kitchen, and bathroom solutions. We're your Essential Living Expert!
-
-What brings you here today?
-• Looking for furniture? (sofas, dining, bedroom)
-• Need kitchen solutions? (sinks, taps, appliances)
-• Bathroom renovation? (complete fixtures)
-• Want free design consultation?
-
-Just type your question or choose an option below!`;
+What are you looking for today?`;
 }
 
 function getHelpMessage() {
-  return `Here's how I can help you:
+  return `I can help with:
+🛋️ Furniture | 🍳 Kitchen | 🚿 Bathroom | 📍 Showroom visits
 
-🛋️ **Furniture Solutions**
-Ask about sofas, dining sets, bedframes, and more
+Commands: /products /showroom /consultation /bestsellers
 
-🍳 **Kitchen Solutions**
-Explore sinks, taps, cooker hoods, and appliances
-
-🚿 **Bathroom Solutions**
-Discover shower systems, basins, vanities, and fixtures
-
-📍 **Showroom Services**
-• Free design consultation
-• View actual displays
-• Professional advice
-
-**Quick Commands:**
-/products - View all categories
-/showroom - Location & hours
-/consultation - Book free session
-/bestsellers - Popular items
-
-Just type your question naturally - I understand Singlish also! 😊`;
+Just ask your question!`;
 }
 
 function getProductsMessage() {
-  return `Here are our product categories:
+  return `Our categories:
+🛋️ Living (sofas, tables) | 🍽️ Dining | 🛏️ Bedroom
+🍳 Kitchen (sinks, taps) | 🚿 Bathroom | 💡 Lighting & fans
 
-**🛋️ Living Room**
-• Sofas (Regular & Electronic)
-• Coffee Tables
-• Single Sofas/Accent Chairs
-
-**🍽️ Dining Room**
-• Dining Tables (Fixed & Extendable)
-• Dining Chairs
-
-**🛏️ Bedroom**
-• Bedframes with storage
-• ESSEN Ultra-Plus Mattresses
-• Bedside tables & drawers
-
-**🍳 Kitchen**
-• Stainless Steel Sinks
-• Kitchen Taps
-• Cooker Hoods & Hobs
-
-**🚿 Bathroom**
-• Rain Shower Systems
-• Basin Taps & Basins
-• Vanity Cabinets
-• Toilet Bowls
-
-**💡 Home Comfort**
-• Ceiling Fans
-• Designer Lighting
-• Water Heaters
-
-Which category interests you? I can share more details!`;
+Which interests you?`;
 }
 
 function getShowroomInfo() {
   return `**ESSEN Furniture Showroom** 📍
 
-Visit us for the complete ESSEN experience!
+See our fully furnished displays and get free design consultation! We're your one-stop for furniture + kitchen + bathroom.
 
-**What to Expect:**
-✨ Fully furnished room displays
-☕ Complimentary refreshments
-👨‍💼 Expert consultants ready to help
-🎯 One-stop solution for furniture + kitchen + bathroom
-
-**Services Available:**
-• FREE design consultation
-• Material & fabric sampling
-• Custom configuration planning
-• Measurement services
-• Delivery arrangement
-
-**Why Visit?**
-Can see and touch our premium materials like 4mm signature leather! Our consultants can help plan your whole home transformation.
-
-Want to book an appointment? Weekday mornings usually more relaxed! Just let me know when you'd like to come.`;
+Want to visit? Just let me know when - weekday mornings are usually quieter.`;
 }
 
 function getConsultationInfo() {
   return `**FREE Design Consultation** 🎨
 
-Our professional consultants are here to help transform your home!
+Get expert help to transform your home - completely free! Our consultants specialize in maximizing HDB and condo spaces.
 
-**What's Included:**
-• Space planning for your home
-• Material and color selection
-• Style recommendations
-• Budget optimization
-• 3D visualization (for larger projects)
-
-**Duration:** Usually 1-2 hours
-
-**What to Bring:**
-• Floor plan (if have)
-• Photos of your space
-• Inspiration images
-• Rough budget in mind
-
-**Best Part:** Completely FREE! No obligation to purchase.
-
-Many customers say this service alone is worth the visit. Our consultants really know how to maximize HDB and condo spaces!
-
-Would you like to schedule a consultation? What's your preferred date and time?`;
+When would you like to visit? Weekday mornings are usually quieter.`;
 }
 
 function getBestSellers() {
-  return `**ESSEN Best Sellers** 🌟
+  return `**Best Sellers** 🌟
+• Miku Electronic Sofa | Cascade Dining Table
+• Nova Storage Bed | 4mm Leather Sofas
 
-Here are what other customers love:
-
-**Sofas:**
-• Miku Extendable Electronic Sofa - Perfect for movie nights!
-• Cova Modular Sofa - Flexible configuration
-
-**Dining:**
-• Cascade Dining Table - Modern sintered stone top
-• Marina Dining Set - Timeless design
-
-**Bedroom:**
-• Nova Storage Bedframe - Maximum space efficiency
-• ESSEN Ultra-Plus III Mattress - Premium comfort
-
-**Kitchen:**
-• SST SS-20501 Kitchen Sink - Nano coating technology
-• KMT Pull-out Tap Series - Practical and stylish
-
-**Special:**
-• ESSEN Silk Design Pendant Light - Statement piece!
-• 4mm Signature Leather Sofas - Exclusive to ESSEN
-
-These items very popular - some even have waiting list! Visit our showroom to see them in person?`;
+Visit showroom to see them? Some have waiting lists!`;
 }
 
 function getAboutESSEN() {
-  return `**About ESSEN Furniture Singapore** 
+  return `**ESSEN Furniture** - Your Essential Living Expert
+Established 2024 | Singapore's ONLY one-stop furniture + kitchen + bathroom retailer
 
-🏢 **Who We Are:**
-Your Essential Living Expert - the ONLY furniture retailer in Singapore offering furniture + kitchen + bathroom solutions under one roof!
+✓ Free consultation | ✓ Premium quality | ✓ 5/5 Google rating
 
-📅 **Established:** July 1st, 2024
-
-💭 **Our Philosophy:**
-"Good furniture is the essence of every home; essential, timeless, and unforgettable"
-
-⭐ **Why Choose ESSEN:**
-• Premium quality at honest prices
-• Free professional design consultation
-• One-stop home transformation
-• 5/5 Google rating from happy customers
-• Exclusive 4mm signature leather
-• 2-year warranty on furniture
-
-🤝 **Partners:**
-We work with interior design firms like Sense & Semblance and Saege Design for complete home solutions.
-
-Visit our showroom to experience the ESSEN difference! Any specific questions about our company?`;
+Visit us to experience the difference!`;
 }
 
 module.exports = {
