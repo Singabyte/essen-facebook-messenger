@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 // Test script for ESSEN chatbot functionality
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const { generateResponseWithHistory, generateQuickReplies } = require('../src/geminiClient');
 
 console.log('🧪 Testing ESSEN Chatbot Functionality\n');
@@ -93,7 +94,11 @@ async function runTests() {
 if (!process.env.GEMINI_API_KEY) {
   console.error('❌ GEMINI_API_KEY not found in .env file');
   console.log('Please add your Gemini API key to test the bot responses');
+  console.log('Looking for .env at:', path.join(__dirname, '../.env'));
   process.exit(1);
+} else {
+  console.log('✅ Gemini API key loaded successfully');
+  console.log(`API Key starts with: ${process.env.GEMINI_API_KEY.substring(0, 10)}...`);
 }
 
 // Run tests
