@@ -14,13 +14,26 @@ initDatabase();
 const { initializeFacebookFeatures } = require('./facebook-integration');
 initializeFacebookFeatures().catch(console.error);
 
-// Middleware for webhook route - needs raw body for signature verification
-app.use('/webhook', bodyParser.json({
-  verify: (req, res, buf, encoding) => {
-    // Store raw body for signature verification
-    req.rawBody = buf.toString('utf8');
+// Custom middleware to capture raw body for webhook signature verification
+app.use((req, res, next) => {
+  if (req.url.startsWith('/webhook') && req.method === 'POST') {
+    let rawBody = '';
+    req.on('data', (chunk) => {
+      rawBody += chunk.toString('utf8');
+    });
+    req.on('end', () => {
+      req.rawBody = rawBody;
+      try {
+        req.body = JSON.parse(rawBody);
+      } catch (e) {
+        req.body = {};
+      }
+      next();
+    });
+  } else {
+    next();
   }
-}));
+});
 
 // Routes - webhook first to ensure proper body handling
 app.use('/webhook', webhook);

@@ -6,6 +6,8 @@ const { logAnalytics } = require('./database');
 
 // Webhook verification endpoint
 router.get('/', (req, res) => {
+  console.log('Webhook GET received with params:', req.query);
+  
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
@@ -19,18 +21,30 @@ router.get('/', (req, res) => {
       res.sendStatus(403);
     }
   } else {
-    console.warn('Webhook verification failed - missing parameters');
-    res.sendStatus(400);
+    // Return bot status for regular GET requests
+    res.status(200).json({ 
+      name: 'Facebook Messenger Bot',
+      status: 'Running',
+      version: '1.0.0'
+    });
   }
 });
 
 // Message handling endpoint
 router.post('/', async (req, res) => {
+  console.log('Webhook POST received');
+  console.log('Headers:', JSON.stringify(req.headers));
+  console.log('Body:', JSON.stringify(req.body));
+  
   const body = req.body;
   
   // Verify webhook signature
   if (!verifyWebhookSignature(req)) {
     console.error('Invalid webhook signature');
+    console.error('Expected signature vs received:', {
+      hasRawBody: !!req.rawBody,
+      hasSignature: !!req.headers['x-hub-signature']
+    });
     return res.sendStatus(403);
   }
   
