@@ -1,8 +1,7 @@
 name: essen-messenger-bot
 region: sgp
-
 services:
-# Main Facebook Bot Service
+# Facebook Bot Service
 - name: facebook-bot
   environment_slug: node-js
   github:
@@ -29,8 +28,6 @@ services:
     type: SECRET
   - key: DB_PATH
     value: /workspace/database/bot.db
-  - key: PORT
-    value: "3000"
 
 # Admin API Service
 - name: admin-api
@@ -52,15 +49,12 @@ services:
     value: production
   - key: JWT_SECRET
     type: SECRET
-    value: "your-jwt-secret-here-change-in-production"
   - key: DB_PATH
     value: /workspace/database/bot.db
   - key: PORT
     value: "4000"
-  - key: FRONTEND_URL
-    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
 
-# Admin UI Static Site
+# Admin UI Service (Static Site)
 static_sites:
 - name: admin-ui
   environment_slug: html
@@ -73,6 +67,3 @@ static_sites:
   output_dir: dist
   routes:
   - path: /admin
-  envs:
-  - key: VITE_API_URL
-    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app/api"
