@@ -92,6 +92,11 @@ async function handleTextMessage(senderId, text) {
     return getAboutESSEN();
   } else if (command === '/clear') {
     return 'No problem! Let\'s start fresh. How can I help you transform your home today?';
+  } else if (command === '/human' || command === '/agent') {
+    // Transfer to human agent
+    const { passThreadControl } = require('./facebook-integration');
+    await passThreadControl(senderId, '263902037430900', 'Customer requested human agent');
+    return 'I\'m connecting you with our human customer service team. They\'ll be with you shortly! 👨‍💼';
   }
   
   // Get conversation history

@@ -10,6 +10,10 @@ const PORT = process.env.PORT || 3000;
 // Initialize database
 initDatabase();
 
+// Initialize Facebook features
+const { initializeFacebookFeatures } = require('./facebook-integration');
+initializeFacebookFeatures().catch(console.error);
+
 // Middleware
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
