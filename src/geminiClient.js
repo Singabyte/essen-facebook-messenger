@@ -1,8 +1,21 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
+const path = require('path');
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+
+// Load ESSEN knowledge base
+let essenKnowledge = '';
+let singaporeExamples = '';
+
+try {
+  essenKnowledge = fs.readFileSync(path.join(__dirname, '../essen-chatbot-kb.md'), 'utf8');
+  singaporeExamples = fs.readFileSync(path.join(__dirname, '../essen-chatbot-sg-examples.md'), 'utf8');
+} catch (error) {
+  console.error('Error loading knowledge base:', error);
+}
 
 // Configuration for the chat
 const generationConfig = {
@@ -32,11 +45,30 @@ const safetySettings = [
   }
 ];
 
-// System prompt for the bot
-const SYSTEM_PROMPT = `You are a helpful and friendly Facebook Messenger bot assistant. 
-Keep your responses conversational, helpful, and concise. 
-If asked about yourself, you can mention you're powered by Google's Gemini AI.
-Always be respectful and appropriate in your responses.`;
+// ESSEN-specific system prompt
+const SYSTEM_PROMPT = `You are the ESSEN Furniture Singapore customer service chatbot. Your role is to help customers with furniture, kitchen, and bathroom solutions.
+
+IMPORTANT GUIDELINES:
+1. You represent ESSEN Furniture Singapore - "Your Essential Living Expert"
+2. Use Singapore English naturally (not full Singlish, but locally contextualized)
+3. Always be warm, helpful, and professional
+4. Encourage showroom visits for the best experience
+5. Emphasize our free design consultation service
+6. Mention our one-stop solution advantage (furniture + kitchen + bathroom)
+7. Highlight quality materials like our signature 4mm leather
+8. Avoid specific pricing - suggest contacting showroom for quotes
+
+KEY INFORMATION:
+- Founded: July 1st, 2024
+- Philosophy: "Good furniture is the essence of every home; essential, timeless, and unforgettable"
+- Unique Selling Point: Only furniture retailer offering furniture + bathroom + kitchen solutions
+- Showroom features: Fully furnished displays, free consultation, complimentary refreshments
+
+KNOWLEDGE BASE:
+${essenKnowledge}
+
+SINGAPORE LANGUAGE EXAMPLES:
+${singaporeExamples}`;
 
 // Generate response using Gemini
 async function generateResponse(prompt, context = '') {
@@ -48,7 +80,7 @@ async function generateResponse(prompt, context = '') {
       fullPrompt += `Previous conversation context:\n${context}\n\n`;
     }
     
-    fullPrompt += `User: ${prompt}\nAssistant:`;
+    fullPrompt += `Customer: ${prompt}\nESSEN Assistant:`;
     
     // Generate content
     const result = await model.generateContent({
@@ -67,14 +99,14 @@ async function generateResponse(prompt, context = '') {
     
     // Handle specific errors
     if (error.message?.includes('API key')) {
-      return 'I apologize, but there seems to be a configuration issue. Please contact the administrator.';
+      return 'I apologize, but there seems to be a technical issue. Please contact our showroom directly for assistance.';
     } else if (error.message?.includes('quota')) {
-      return 'I apologize, but I\'m currently experiencing high demand. Please try again in a moment.';
+      return 'I apologize, but I\'m currently experiencing high demand. Please try again in a moment, or feel free to call our showroom!';
     } else if (error.message?.includes('safety')) {
-      return 'I apologize, but I cannot provide a response to that request.';
+      return 'I apologize, but I cannot provide a response to that request. How else can I help you with your furniture needs?';
     }
     
-    return 'I apologize, but I encountered an error. Please try again later.';
+    return 'I apologize for the inconvenience. Please try again, or visit our showroom for immediate assistance!';
   }
 }
 
@@ -87,7 +119,7 @@ async function generateResponseWithHistory(prompt, conversationHistory) {
       context = conversationHistory
         .slice(-5) // Get last 5 exchanges
         .reverse() // Put in chronological order
-        .map(conv => `User: ${conv.message}\nAssistant: ${conv.response}`)
+        .map(conv => `Customer: ${conv.message}\nESSEN Assistant: ${conv.response}`)
         .join('\n\n');
     }
     
@@ -98,16 +130,20 @@ async function generateResponseWithHistory(prompt, conversationHistory) {
   }
 }
 
-// Generate contextual quick replies
+// Generate contextual quick replies based on ESSEN context
 async function generateQuickReplies(userMessage, botResponse) {
   try {
-    const prompt = `Based on this conversation:
-User: ${userMessage}
-Bot: ${botResponse}
+    const prompt = `Based on this ESSEN Furniture conversation:
+Customer: ${userMessage}
+ESSEN Assistant: ${botResponse}
 
-Generate 2-3 relevant follow-up questions or actions the user might want to take. 
-Return them as a JSON array of strings, each under 20 characters.
-Example: ["Tell me more", "Show examples", "Help"]`;
+Generate 2-3 relevant follow-up options for the customer. Consider:
+- Product categories (sofas, dining, bedroom, kitchen, bathroom)
+- Services (showroom visit, design consultation)
+- Common concerns (delivery, warranty, customization)
+
+Return as JSON array of strings, each under 20 characters.
+Example: ["View sofas", "Book consultation", "Showroom info"]`;
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -128,16 +164,48 @@ Example: ["Tell me more", "Show examples", "Help"]`;
       console.error('Failed to parse quick replies:', e);
     }
     
-    // Default quick replies
-    return ["Tell me more", "Help", "Start over"];
+    // Default ESSEN-specific quick replies
+    return ["View products", "Visit showroom", "Free consultation"];
   } catch (error) {
     console.error('Error generating quick replies:', error);
-    return ["Tell me more", "Help", "Start over"];
+    return ["View products", "Visit showroom", "Free consultation"];
   }
+}
+
+// Get product information from knowledge base
+function getProductInfo(category) {
+  const categories = {
+    'sofa': 'sofas',
+    'dining': 'dining',
+    'bedroom': 'bedroom',
+    'kitchen': 'kitchen',
+    'bathroom': 'bathroom'
+  };
+  
+  // Simple extraction based on category
+  const searchTerm = categories[category.toLowerCase()] || category;
+  const lines = essenKnowledge.split('\n');
+  const relevantInfo = [];
+  
+  let capturing = false;
+  for (const line of lines) {
+    if (line.toLowerCase().includes(searchTerm)) {
+      capturing = true;
+    } else if (line.startsWith('###') && capturing) {
+      break;
+    }
+    
+    if (capturing) {
+      relevantInfo.push(line);
+    }
+  }
+  
+  return relevantInfo.join('\n');
 }
 
 module.exports = {
   generateResponse,
   generateResponseWithHistory,
-  generateQuickReplies
+  generateQuickReplies,
+  getProductInfo
 };

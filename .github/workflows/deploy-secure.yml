@@ -1,0 +1,102 @@
+name: Secure Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run linter
+      run: npm run lint || echo "No lint script"
+    
+    - name: Run tests
+      run: npm test || echo "No tests yet"
+    
+    - name: Check for secrets in code
+      run: |
+        if grep -r "PAGE_ACCESS_TOKEN\|APP_SECRET\|GEMINI_API_KEY" --include="*.js" --exclude-dir=node_modules .; then
+          echo "❌ Hardcoded secrets found in code!"
+          exit 1
+        fi
+        echo "✅ No hardcoded secrets found"
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Deploy to DigitalOcean
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          set -e
+          
+          # Navigate to app directory
+          cd ~/essen-facebook-messenger
+          
+          # Backup current version
+          cp -r . ../backup-$(date +%Y%m%d-%H%M%S) || true
+          
+          # Pull latest changes
+          git fetch origin main
+          git reset --hard origin/main
+          
+          # Install production dependencies
+          npm ci --production
+          
+          # Run database migrations
+          node -e "require('./src/database').initDatabase()"
+          
+          # Reload application
+          pm2 reload ecosystem.config.js --update-env
+          pm2 save
+          
+          # Clean up old backups (keep last 3)
+          cd ../
+          ls -t | grep backup- | tail -n +4 | xargs rm -rf || true
+          
+    - name: Verify deployment
+      run: |
+        sleep 15
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.SERVER_HOST }}/health)
+        if [ $response -eq 200 ]; then
+          echo "✅ Deployment successful!"
+          curl -s https://${{ secrets.SERVER_HOST }}/health | jq '.'
+        else
+          echo "❌ Health check failed with status: $response"
+          exit 1
+        fi
+    
+    - name: Notify deployment status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "🚀 Deployment completed successfully"
+        else
+          echo "❌ Deployment failed"
+        fi
