@@ -36,18 +36,79 @@ app.get(['/health', '/api/health'], (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Test login endpoint for debugging
+app.post(['/debug/test-login', '/api/debug/test-login'], async (req, res) => {
+  const bcrypt = require('bcryptjs');
+  const queries = require('./db/queries');
+  
+  try {
+    // Test with hardcoded credentials
+    const username = 'admin';
+    const password = 'hello123';
+    
+    console.log('Test login attempt for:', username);
+    
+    // Find user
+    const user = await queries.admin.findByUsername(username);
+    console.log('User found:', !!user);
+    
+    if (!user) {
+      return res.json({ 
+        success: false, 
+        error: 'User not found',
+        message: 'Admin user does not exist in database'
+      });
+    }
+    
+    // Check password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    console.log('Password valid:', isValidPassword);
+    
+    return res.json({
+      success: isValidPassword,
+      user: user ? { id: user.id, username: user.username } : null,
+      passwordMatch: isValidPassword,
+      hashedPasswordLength: user.password ? user.password.length : 0
+    });
+    
+  } catch (error) {
+    console.error('Test login error:', error);
+    return res.json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Debug database connection
-app.get(['/debug/db', '/api/debug/db'], (req, res) => {
+app.get(['/debug/db', '/api/debug/db'], async (req, res) => {
   const path = require('path');
   const fs = require('fs');
-  const dbPath = path.resolve(__dirname, process.env.DB_PATH || '../../../database/bot.db');
+  const { getAdminUsers } = require('./db/queries').admin;
+  
+  const dbPath = process.env.DB_PATH 
+    ? process.env.DB_PATH
+    : path.resolve(__dirname, '../../../database/bot.db');
+  
+  let users = [];
+  let dbError = null;
+  
+  try {
+    users = await getAdminUsers();
+  } catch (err) {
+    dbError = err.message;
+  }
   
   res.json({
     envDbPath: process.env.DB_PATH,
     resolvedPath: dbPath,
     exists: fs.existsSync(dbPath),
     workingDir: process.cwd(),
-    dirname: __dirname
+    dirname: __dirname,
+    adminUsers: users.length,
+    dbError: dbError,
+    dbStats: fs.existsSync(dbPath) ? fs.statSync(dbPath) : null
   });
 });
 

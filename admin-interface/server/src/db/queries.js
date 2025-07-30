@@ -223,6 +223,10 @@ const queries = {
         'UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
         [userId]
       );
+    },
+    
+    getAdminUsers: async () => {
+      return await all('SELECT id, username, created_at, last_login FROM admin_users');
     }
   }
 };
