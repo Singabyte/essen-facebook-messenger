@@ -1,10 +1,18 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
 // Use absolute path from env or resolve relative path
 const dbPath = process.env.DB_PATH 
   ? process.env.DB_PATH  // Use absolute path from environment
   : path.resolve(__dirname, '../../../../database/bot.db'); // Fallback to relative path
+
+// Ensure database directory exists
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+  console.log('Created database directory:', dbDir);
+}
 
 console.log('Attempting to connect to database at:', dbPath);
 
@@ -43,6 +51,53 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CR
 // Initialize admin tables
 function initAdminTables() {
   db.serialize(() => {
+    // Create main bot tables first (in case they don't exist)
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      profile_pic TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_interaction DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    
+    db.run(`CREATE TABLE IF NOT EXISTS conversations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT,
+      message TEXT,
+      response TEXT,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+    
+    db.run(`CREATE TABLE IF NOT EXISTS appointments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT,
+      appointment_date TEXT,
+      appointment_time TEXT,
+      name TEXT,
+      phone TEXT,
+      email TEXT,
+      message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+    
+    db.run(`CREATE TABLE IF NOT EXISTS analytics (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      event_type TEXT,
+      user_id TEXT,
+      data JSON,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    
+    db.run(`CREATE TABLE IF NOT EXISTS user_preferences (
+      user_id TEXT PRIMARY KEY,
+      preferences JSON,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+    
     // Admin users table
     db.run(`CREATE TABLE IF NOT EXISTS admin_users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
