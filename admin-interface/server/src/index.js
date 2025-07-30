@@ -28,19 +28,40 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100 // limit each IP to 100 requests per windowMs
 });
-app.use('/api/', limiter);
+app.use('/', limiter);
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/conversations', require('./routes/conversations'));
-app.use('/api/appointments', require('./routes/appointments'));
-app.use('/api/analytics', require('./routes/analytics'));
-app.use('/api/knowledge-base', require('./routes/knowledge-base'));
-
+// Routes - Handle both /api/* and /* paths for DigitalOcean ingress
 // Health check
-app.get('/api/health', (req, res) => {
+app.get(['/health', '/api/health'], (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Auth routes
+app.use(['/auth', '/api/auth'], require('./routes/auth'));
+
+// Protected routes
+app.use(['/users', '/api/users'], require('./routes/users'));
+app.use(['/conversations', '/api/conversations'], require('./routes/conversations'));
+app.use(['/appointments', '/api/appointments'], require('./routes/appointments'));
+app.use(['/analytics', '/api/analytics'], require('./routes/analytics'));
+app.use(['/knowledge-base', '/api/knowledge-base'], require('./routes/knowledge-base'));
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    name: 'ESSEN Bot Admin API',
+    status: 'Running',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      auth: '/auth/login',
+      users: '/users',
+      conversations: '/conversations',
+      appointments: '/appointments',
+      analytics: '/analytics',
+      knowledgeBase: '/knowledge-base'
+    }
+  });
 });
 
 // Error handling middleware
@@ -63,4 +84,6 @@ initializeWebSocket(server);
 // Start server
 server.listen(PORT, () => {
   console.log(`Admin API server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log('Routes configured for both /api/* and /* paths');
 });
