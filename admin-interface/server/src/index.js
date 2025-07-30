@@ -36,6 +36,21 @@ app.get(['/health', '/api/health'], (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Debug database connection
+app.get(['/debug/db', '/api/debug/db'], (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const dbPath = path.resolve(__dirname, process.env.DB_PATH || '../../../database/bot.db');
+  
+  res.json({
+    envDbPath: process.env.DB_PATH,
+    resolvedPath: dbPath,
+    exists: fs.existsSync(dbPath),
+    workingDir: process.cwd(),
+    dirname: __dirname
+  });
+});
+
 // Auth routes
 app.use(['/auth', '/api/auth'], require('./routes/auth'));
 

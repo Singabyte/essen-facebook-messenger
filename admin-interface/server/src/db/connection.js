@@ -1,13 +1,21 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const dbPath = path.resolve(__dirname, process.env.DB_PATH || '../../../../database/bot.db');
+// Use absolute path from env or resolve relative path
+const dbPath = process.env.DB_PATH 
+  ? process.env.DB_PATH  // Use absolute path from environment
+  : path.resolve(__dirname, '../../../../database/bot.db'); // Fallback to relative path
+
+console.log('Attempting to connect to database at:', dbPath);
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error opening database:', err);
+    console.error('Database path:', dbPath);
+    console.error('Working directory:', process.cwd());
   } else {
     console.log('Connected to SQLite database for admin interface');
+    console.log('Database path:', dbPath);
   }
 });
 
