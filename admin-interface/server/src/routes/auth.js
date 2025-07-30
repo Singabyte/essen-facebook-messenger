@@ -32,9 +32,10 @@ router.post('/login', async (req, res) => {
     await queries.admin.updateLastLogin(user.id);
     
     // Generate token
+    const jwtSecret = process.env.JWT_SECRET || 'xVmE8Q7F+Rd3YKZPlm9cwXQ7RHLvW8Ij6N2BaMnKt1s=';
     const token = jwt.sign(
       { id: user.id, username: user.username },
-      process.env.JWT_SECRET,
+      jwtSecret,
       { expiresIn: '24h' }
     );
     
