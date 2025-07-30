@@ -47,6 +47,46 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Diagnostic endpoint
+app.get('/debug/version', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  let gitCommit = 'unknown';
+  let deployTime = 'unknown';
+  
+  try {
+    // Try to read git commit from file if available
+    if (fs.existsSync('.git/HEAD')) {
+      const head = fs.readFileSync('.git/HEAD', 'utf8').trim();
+      if (head.startsWith('ref:')) {
+        const ref = head.split(' ')[1];
+        gitCommit = fs.readFileSync('.git/' + ref, 'utf8').trim().substring(0, 7);
+      }
+    }
+  } catch (e) {
+    // Ignore errors
+  }
+  
+  try {
+    // Get file modification time of index.js
+    const stats = fs.statSync(path.join(__dirname, 'index.js'));
+    deployTime = stats.mtime.toISOString();
+  } catch (e) {
+    // Ignore errors  
+  }
+  
+  res.json({
+    version: '1.0.0',
+    gitCommit,
+    deployTime,
+    nodeVersion: process.version,
+    env: process.env.NODE_ENV,
+    webhookRouteExists: !!app._router && app._router.stack.some(r => r.regexp && r.regexp.toString().includes('webhook')),
+    routes: app._router ? app._router.stack.filter(r => r.route).map(r => r.route.path) : []
+  });
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.status(200).json({ 
