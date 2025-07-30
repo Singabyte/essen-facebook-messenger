@@ -50,9 +50,40 @@ function initAdminTables() {
       password TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_login DATETIME
-    )`, (err) => {
-      if (err) console.error('Error creating admin_users table:', err);
-      else console.log('Admin users table ready');
+    )`, async (err) => {
+      if (err) {
+        console.error('Error creating admin_users table:', err);
+      } else {
+        console.log('Admin users table ready');
+        
+        // Auto-create default admin user if none exists
+        db.get('SELECT COUNT(*) as count FROM admin_users', async (err, row) => {
+          if (err) {
+            console.error('Error checking admin users:', err);
+            return;
+          }
+          
+          if (row.count === 0) {
+            console.log('No admin users found, creating default admin...');
+            const bcrypt = require('bcryptjs');
+            const hashedPassword = await bcrypt.hash('hello123', 10);
+            
+            db.run(
+              'INSERT INTO admin_users (username, password) VALUES (?, ?)',
+              ['admin', hashedPassword],
+              function(err) {
+                if (err) {
+                  console.error('Error creating default admin:', err);
+                } else {
+                  console.log('✅ Default admin user created (username: admin, password: hello123)');
+                }
+              }
+            );
+          } else {
+            console.log(`Found ${row.count} admin user(s)`);
+          }
+        });
+      }
     });
     
     // Audit logs table

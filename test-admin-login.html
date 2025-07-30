@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Admin Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Test Admin Login</h1>
+    
+    <div class="section">
+        <h2>1. Check API Status</h2>
+        <button onclick="checkHealth()">Check Health</button>
+        <button onclick="checkEnv()">Check Environment</button>
+        <div id="health-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Initialize Admin User</h2>
+        <button onclick="initAdmin()">Create Admin User</button>
+        <div id="init-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Test Login</h2>
+        <button onclick="testLogin()">Test Login (admin/hello123)</button>
+        <div id="login-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>4. Manual Login</h2>
+        <input type="text" id="username" placeholder="Username" value="admin">
+        <input type="password" id="password" placeholder="Password" value="hello123">
+        <button onclick="manualLogin()">Login</button>
+        <div id="manual-result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://essen-messenger-bot-zxxtw.ondigitalocean.app/api';
+        
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                document.getElementById('health-result').innerHTML = 
+                    `<div class="success">✓ API is running</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('health-result').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function checkEnv() {
+            try {
+                const response = await fetch(`${API_URL}/debug/env`);
+                const data = await response.json();
+                document.getElementById('health-result').innerHTML = 
+                    `<div class="success">✓ Environment info</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('health-result').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function initAdmin() {
+            try {
+                const response = await fetch(`${API_URL}/debug/init-admin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                document.getElementById('init-result').innerHTML = 
+                    `<div class="${data.success ? 'success' : 'error'}">${data.success ? '✓' : '✗'} ${data.message}</div>
+                     <pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('init-result').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testLogin() {
+            try {
+                const response = await fetch(`${API_URL}/debug/test-login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                document.getElementById('login-result').innerHTML = 
+                    `<div class="${data.success ? 'success' : 'error'}">${data.success ? '✓' : '✗'} Test login result</div>
+                     <pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                document.getElementById('login-result').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function manualLogin() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('manual-result').innerHTML = 
+                        `<div class="success">✓ Login successful!</div>
+                         <pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    document.getElementById('manual-result').innerHTML = 
+                        `<div class="error">✗ Login failed (${response.status})</div>
+                         <pre>${JSON.stringify(data, null, 2)}</pre>`;
+                }
+            } catch (error) {
+                document.getElementById('manual-result').innerHTML = 
+                    `<div class="error">✗ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
