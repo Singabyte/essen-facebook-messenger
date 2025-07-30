@@ -16,7 +16,8 @@ initializeFacebookFeatures().catch(console.error);
 
 // Custom middleware to capture raw body for webhook signature verification
 app.use((req, res, next) => {
-  if (req.url.startsWith('/webhook') && req.method === 'POST') {
+  // With DigitalOcean path stripping, webhook POST requests come to '/'
+  if (req.url === '/' && req.method === 'POST') {
     let rawBody = '';
     req.on('data', (chunk) => {
       rawBody += chunk.toString('utf8');
@@ -35,14 +36,16 @@ app.use((req, res, next) => {
   }
 });
 
-// Routes - webhook first to ensure proper body handling
-app.use('/webhook', webhook);
+// Routes - mount webhook at root for DigitalOcean path stripping
+// When app.yaml has "path: /webhook", DO strips the prefix
+app.use('/', webhook);
 
 // Middleware for other routes
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Health check
+// Health check - IMPORTANT: This must come AFTER webhook router
+// Otherwise it might interfere with webhook routes
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
@@ -87,14 +90,7 @@ app.get('/debug/version', (req, res) => {
   });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.status(200).json({ 
-    name: 'Facebook Messenger Bot',
-    status: 'Running',
-    version: '1.0.0'
-  });
-});
+// Root endpoint - handled by webhook router when path stripping is enabled
 
 // Error handling middleware
 app.use((err, req, res, next) => {

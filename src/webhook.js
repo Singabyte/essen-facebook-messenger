@@ -15,9 +15,12 @@ router.post('/', handleWebhookMessage);
 
 // Webhook verification endpoint
 function handleWebhookVerification(req, res) {
-  console.log('Webhook GET received');
-  console.log('Full URL:', req.originalUrl || req.url);
-  console.log('Query params:', req.query);
+  console.log('=== WEBHOOK VERIFICATION ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Original URL:', req.originalUrl);
+  console.log('Query params:', JSON.stringify(req.query));
+  console.log('Headers:', JSON.stringify(req.headers));
   
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
