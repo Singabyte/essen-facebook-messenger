@@ -101,9 +101,16 @@ FAILED_TESTS=$((FAILED_TESTS + $?))
 test_endpoint_body "Admin API Root" "$APP_URL/api" "ESSEN Bot Admin API" "Admin API info endpoint working"
 FAILED_TESTS=$((FAILED_TESTS + $?))
 
-# Test auth endpoint exists
-test_endpoint "Auth Endpoint" "$APP_URL/api/auth/login" 400 "Auth endpoint accessible (400 = missing credentials)"
-FAILED_TESTS=$((FAILED_TESTS + $?))
+# Test auth endpoint exists (POST request without body)
+echo -n "Testing Auth Endpoint... "
+response_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$APP_URL/api/auth/login" -H "Content-Type: application/json")
+if [ "$response_code" -eq 400 ] || [ "$response_code" -eq 401 ]; then
+    echo -e "${GREEN}✓ PASS${NC} (Status: $response_code)"
+    echo "  └─ Auth endpoint accessible (requires credentials)"
+else
+    echo -e "${RED}✗ FAIL${NC} (Expected: 400/401, Got: $response_code)"
+    FAILED_TESTS=$((FAILED_TESTS + 1))
+fi
 
 echo ""
 echo "3️⃣  Testing Admin UI"

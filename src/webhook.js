@@ -16,16 +16,21 @@ function handleWebhookVerification(req, res) {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
   
-  if (mode && token) {
-    if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) {
+  // Check if this is a webhook verification request
+  if (mode === 'subscribe' && token && challenge) {
+    if (token === process.env.VERIFY_TOKEN) {
       console.log('Webhook verified successfully');
       res.status(200).send(challenge);
     } else {
       console.warn('Webhook verification failed - invalid token');
       res.sendStatus(403);
     }
+  } else if (mode || token || challenge) {
+    // Partial webhook params - invalid request
+    console.warn('Invalid webhook verification request - missing parameters');
+    res.sendStatus(400);
   } else {
-    // Return bot status for regular GET requests
+    // No webhook params - return bot status for regular GET requests
     res.status(200).json({ 
       name: 'Facebook Messenger Bot',
       status: 'Running',

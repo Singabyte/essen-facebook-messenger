@@ -11,6 +11,11 @@ router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     
+    // Validate input
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required' });
+    }
+    
     // Find user
     const user = await queries.admin.findByUsername(username);
     if (!user) {
