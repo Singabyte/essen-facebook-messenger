@@ -36,6 +36,47 @@ app.get(['/health', '/api/health'], (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Initialize admin user endpoint
+app.post(['/debug/init-admin', '/api/debug/init-admin'], async (req, res) => {
+  const bcrypt = require('bcryptjs');
+  const queries = require('./db/queries');
+  
+  try {
+    const username = 'admin';
+    const password = 'hello123';
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Check if admin exists
+    const existingUser = await queries.admin.findByUsername(username);
+    
+    if (existingUser) {
+      return res.json({
+        success: false,
+        message: 'Admin user already exists',
+        username: username
+      });
+    }
+    
+    // Create admin user
+    await queries.admin.createUser(username, hashedPassword);
+    
+    return res.json({
+      success: true,
+      message: 'Admin user created successfully',
+      username: username,
+      password: password,
+      note: 'Please change the password after first login!'
+    });
+    
+  } catch (error) {
+    console.error('Init admin error:', error);
+    return res.json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Simple debug endpoint - no database
 app.get(['/debug/env', '/api/debug/env'], (req, res) => {
   const fs = require('fs');
