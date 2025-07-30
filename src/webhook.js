@@ -4,13 +4,20 @@ const crypto = require('crypto');
 const messageHandler = require('./messageHandler');
 const { logAnalytics } = require('./database');
 
+// Test endpoint to verify router is working
+router.get('/test', (req, res) => {
+  res.json({ message: 'Webhook router is working', query: req.query });
+});
+
 // Also handle requests at root path (for DigitalOcean ingress)
 router.get('/', handleWebhookVerification);
 router.post('/', handleWebhookMessage);
 
 // Webhook verification endpoint
 function handleWebhookVerification(req, res) {
-  console.log('Webhook GET received with params:', req.query);
+  console.log('Webhook GET received');
+  console.log('Full URL:', req.originalUrl || req.url);
+  console.log('Query params:', req.query);
   
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
