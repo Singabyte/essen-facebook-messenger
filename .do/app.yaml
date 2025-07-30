@@ -51,8 +51,7 @@ services:
   - key: NODE_ENV
     value: production
   - key: JWT_SECRET
-    type: SECRET
-    value: "your-jwt-secret-here-change-in-production"
+    value: "xVmE8Q7F+Rd3YKZPlm9cwXQ7RHLvW8Ij6N2BaMnKt1s="
   - key: DB_PATH
     value: /workspace/database/bot.db
   - key: PORT
