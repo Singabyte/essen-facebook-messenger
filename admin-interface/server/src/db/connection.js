@@ -8,14 +8,35 @@ const dbPath = process.env.DB_PATH
 
 console.log('Attempting to connect to database at:', dbPath);
 
-const db = new sqlite3.Database(dbPath, (err) => {
+// Open database with specific mode to handle concurrent access
+const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
   if (err) {
     console.error('Error opening database:', err);
     console.error('Database path:', dbPath);
     console.error('Working directory:', process.cwd());
+    console.error('Error code:', err.code);
+    console.error('Error errno:', err.errno);
   } else {
     console.log('Connected to SQLite database for admin interface');
     console.log('Database path:', dbPath);
+    
+    // Enable WAL mode for better concurrent access
+    db.run('PRAGMA journal_mode=WAL', (err) => {
+      if (err) {
+        console.error('Error setting WAL mode:', err);
+      } else {
+        console.log('WAL mode enabled for better concurrent access');
+      }
+    });
+    
+    // Set busy timeout to wait if database is locked
+    db.run('PRAGMA busy_timeout=10000', (err) => {
+      if (err) {
+        console.error('Error setting busy timeout:', err);
+      } else {
+        console.log('Busy timeout set to 10 seconds');
+      }
+    });
   }
 });
 

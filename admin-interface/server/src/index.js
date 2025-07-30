@@ -36,6 +36,21 @@ app.get(['/health', '/api/health'], (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Simple debug endpoint - no database
+app.get(['/debug/env', '/api/debug/env'], (req, res) => {
+  const fs = require('fs');
+  const dbPath = process.env.DB_PATH || '/workspace/database/bot.db';
+  
+  res.json({
+    dbPath: dbPath,
+    dbExists: fs.existsSync(dbPath),
+    nodeEnv: process.env.NODE_ENV,
+    workDir: process.cwd(),
+    dbReadable: fs.existsSync(dbPath) ? fs.accessSync(dbPath, fs.constants.R_OK) === undefined : false,
+    dbWritable: fs.existsSync(dbPath) ? fs.accessSync(dbPath, fs.constants.W_OK) === undefined : false
+  });
+});
+
 // Test login endpoint for debugging
 app.post(['/debug/test-login', '/api/debug/test-login'], async (req, res) => {
   const bcrypt = require('bcryptjs');
