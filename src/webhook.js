@@ -4,8 +4,12 @@ const crypto = require('crypto');
 const messageHandler = require('./messageHandler');
 const { logAnalytics } = require('./database');
 
+// Also handle requests at root path (for DigitalOcean ingress)
+router.get('/', handleWebhookVerification);
+router.post('/', handleWebhookMessage);
+
 // Webhook verification endpoint
-router.get('/', (req, res) => {
+function handleWebhookVerification(req, res) {
   console.log('Webhook GET received with params:', req.query);
   
   const mode = req.query['hub.mode'];
@@ -28,10 +32,10 @@ router.get('/', (req, res) => {
       version: '1.0.0'
     });
   }
-});
+}
 
 // Message handling endpoint
-router.post('/', async (req, res) => {
+async function handleWebhookMessage(req, res) {
   console.log('Webhook POST received');
   console.log('Headers:', JSON.stringify(req.headers));
   console.log('Body:', JSON.stringify(req.body));
@@ -92,7 +96,7 @@ router.post('/', async (req, res) => {
     // Not a page subscription
     res.sendStatus(404);
   }
-});
+}
 
 // Verify webhook signature
 function verifyWebhookSignature(req) {
