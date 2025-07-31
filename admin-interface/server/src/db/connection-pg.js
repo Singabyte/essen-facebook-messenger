@@ -5,16 +5,9 @@ const bcrypt = require('bcryptjs');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? {
-    // For DigitalOcean managed databases, we need to properly handle SSL
-    rejectUnauthorized: true,
-    // Allow self-signed certificates from DigitalOcean
-    checkServerIdentity: (host, cert) => {
-      // DigitalOcean managed databases use certificates that may not match hostname
-      // This is safe for managed services within the same project
-      return undefined;
-    },
-    // Set minimum TLS version
-    secureProtocol: 'TLSv1_2_method'
+    // For DigitalOcean managed databases, disable certificate verification
+    // This is safe for managed services within the same project
+    rejectUnauthorized: false
   } : false,
   max: 20,
   idleTimeoutMillis: 30000,

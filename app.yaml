@@ -1,21 +1,29 @@
 name: essen-messenger-bot
 region: sgp
 
-# Main Bot Service
+# Database configuration
+databases:
+- name: db
+  engine: PG
+  version: "15"
+  size: db-s-dev-database
+  num_nodes: 1
+
 services:
+# Main Facebook Bot Service
 - name: facebook-bot
   environment_slug: node-js
   github:
     branch: main
     deploy_on_push: true
-    repo: singabyte/essen-facebook-messenger
+    repo: Singabyte/essen-facebook-messenger
   build_command: npm install
-  run_command: npm start
+  run_command: node src/index.js
   http_port: 3000
   instance_count: 1
   instance_size_slug: basic-xxs
   routes:
-  - path: /webhook
+  - path: /
   envs:
   - key: NODE_ENV
     value: production
@@ -27,23 +35,24 @@ services:
     type: SECRET
   - key: GEMINI_API_KEY
     type: SECRET
-  - key: DATABASE_URL
-    type: SECRET
   - key: DB_PATH
     value: /workspace/database/bot.db
+  - key: DATABASE_URL
+    type: SECRET
+    value: "${db.DATABASE_URL}"
   - key: PORT
     value: "3000"
 
-# Admin Backend Service
+# Admin API Service
 - name: admin-api
   environment_slug: node-js
   github:
     branch: main
     deploy_on_push: true
-    repo: singabyte/essen-facebook-messenger
-  source_dir: /admin-interface/server
+    repo: Singabyte/essen-facebook-messenger
+  source_dir: admin-interface/server
   build_command: npm install
-  run_command: npm start
+  run_command: node src/index.js
   http_port: 4000
   instance_count: 1
   instance_size_slug: basic-xxs
@@ -53,29 +62,31 @@ services:
   - key: NODE_ENV
     value: production
   - key: JWT_SECRET
-    type: SECRET
-  - key: DATABASE_URL
-    type: SECRET
-  - key: PORT
-    value: "4000"
+    value: "xVmE8Q7F+Rd3YKZPlm9cwXQ7RHLvW8Ij6N2BaMnKt1s="
   - key: DB_PATH
     value: /workspace/database/bot.db
+  - key: DATABASE_URL
+    type: SECRET
+    value: "${db.DATABASE_URL}"
+  - key: PORT
+    value: "4000"
   - key: FRONTEND_URL
-    value: ${APP_URL}
+    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
 
-# Admin Frontend Static Site
+# Admin UI Static Site
 static_sites:
 - name: admin-ui
-  environment_slug: node-js
+  environment_slug: html
   github:
     branch: main
     deploy_on_push: true
-    repo: singabyte/essen-facebook-messenger
-  source_dir: /admin-interface/client
+    repo: Singabyte/essen-facebook-messenger
+  source_dir: admin-interface/client
   build_command: npm install && npm run build
   output_dir: dist
+  catchall_document: index.html
   routes:
-  - path: /
+  - path: /admin
   envs:
   - key: VITE_API_URL
-    value: ${APP_URL}/api
+    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app/api"
