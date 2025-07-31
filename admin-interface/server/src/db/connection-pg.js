@@ -1,6 +1,11 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
+// For production environments with self-signed certificates
+if (process.env.NODE_ENV === 'production') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 // PostgreSQL connection with proper SSL configuration for DigitalOcean
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
