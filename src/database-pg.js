@@ -93,10 +93,10 @@ async function initDatabase() {
       CREATE TABLE IF NOT EXISTS appointments (
         id SERIAL PRIMARY KEY,
         user_id TEXT REFERENCES users(id),
+        facebook_name TEXT,
         appointment_date TEXT,
         appointment_time TEXT,
-        name TEXT,
-        phone TEXT,
+        phone_number TEXT,
         email TEXT,
         message TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -221,27 +221,43 @@ const db = {
     }
   },
 
+  // Alias for compatibility with SQLite version
+  logAnalytics: async (eventType, userId, data = {}) => {
+    return db.trackEvent(eventType, userId, data);
+  },
+
   // Appointment operations
-  saveAppointment: async (appointmentData) => {
+  saveAppointment: async (userId, facebookName, appointmentDate, appointmentTime, phoneNumber = null) => {
     try {
       const query = `
-        INSERT INTO appointments (user_id, appointment_date, appointment_time, name, phone, email, message)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO appointments (user_id, facebook_name, appointment_date, appointment_time, phone_number)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
       `;
       const result = await pool.query(query, [
-        appointmentData.user_id,
-        appointmentData.appointment_date,
-        appointmentData.appointment_time,
-        appointmentData.name,
-        appointmentData.phone,
-        appointmentData.email,
-        appointmentData.message
+        userId,
+        facebookName,
+        appointmentDate,
+        appointmentTime,
+        phoneNumber
       ]);
       return result.rows[0].id;
     } catch (err) {
       console.error('Error saving appointment:', err);
       throw err;
+    }
+  },
+
+  getUserAppointments: async (userId) => {
+    try {
+      const result = await pool.query(
+        'SELECT * FROM appointments WHERE user_id = $1 ORDER BY created_at DESC',
+        [userId]
+      );
+      return result.rows;
+    } catch (err) {
+      console.error('Error getting user appointments:', err);
+      return [];
     }
   },
 
