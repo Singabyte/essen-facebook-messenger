@@ -1,6 +1,14 @@
 name: essen-messenger-bot
 region: sgp
 
+# Database configuration
+databases:
+- name: db
+  engine: PG
+  version: "15"
+  size: db-s-dev-database
+  num_nodes: 1
+
 services:
 # Main Facebook Bot Service
 - name: facebook-bot
@@ -29,6 +37,9 @@ services:
     type: SECRET
   - key: DB_PATH
     value: /workspace/database/bot.db
+  - key: DATABASE_URL
+    type: SECRET
+    value: "${db.DATABASE_URL}"
   - key: PORT
     value: "3000"
 
@@ -54,6 +65,9 @@ services:
     value: "xVmE8Q7F+Rd3YKZPlm9cwXQ7RHLvW8Ij6N2BaMnKt1s="
   - key: DB_PATH
     value: /workspace/database/bot.db
+  - key: DATABASE_URL
+    type: SECRET
+    value: "${db.DATABASE_URL}"
   - key: PORT
     value: "4000"
   - key: FRONTEND_URL

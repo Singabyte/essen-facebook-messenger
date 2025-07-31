@@ -1,20 +1,29 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+// Check if we should use PostgreSQL or SQLite
+const usePostgreSQL = !!process.env.DATABASE_URL;
 
-// Use absolute path from env or resolve relative path
-const dbPath = process.env.DB_PATH 
-  ? process.env.DB_PATH  // Use absolute path from environment
-  : path.resolve(__dirname, '../../../../database/bot.db'); // Fallback to relative path
+if (usePostgreSQL) {
+  // Use PostgreSQL
+  console.log('Admin interface using PostgreSQL database');
+  module.exports = require('./connection-pg');
+} else {
+  // Use SQLite (original implementation)
+  const sqlite3 = require('sqlite3').verbose();
+  const path = require('path');
+  const fs = require('fs');
 
-// Ensure database directory exists
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-  console.log('Created database directory:', dbDir);
-}
+  // Use absolute path from env or resolve relative path
+  const dbPath = process.env.DB_PATH 
+    ? process.env.DB_PATH  // Use absolute path from environment
+    : path.resolve(__dirname, '../../../../database/bot.db'); // Fallback to relative path
 
-console.log('Attempting to connect to database at:', dbPath);
+  // Ensure database directory exists
+  const dbDir = path.dirname(dbPath);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+    console.log('Created database directory:', dbDir);
+  }
+
+  console.log('Attempting to connect to database at:', dbPath);
 
 // Open database with specific mode to handle concurrent access
 const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
@@ -196,4 +205,5 @@ const dbHelpers = {
   }
 };
 
-module.exports = { db, initAdminTables, ...dbHelpers };
+  module.exports = { db, initAdminTables, ...dbHelpers };
+}

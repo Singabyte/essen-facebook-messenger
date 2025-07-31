@@ -1,40 +1,49 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+// Check if we should use PostgreSQL or SQLite
+const usePostgreSQL = !!process.env.DATABASE_URL;
 
-const dbPath = process.env.DB_PATH || './database/bot.db';
-const dbDir = path.dirname(dbPath);
+if (usePostgreSQL) {
+  // Use PostgreSQL
+  console.log('Using PostgreSQL database');
+  module.exports = require('./database-pg');
+} else {
+  // Use SQLite (original implementation)
+  const sqlite3 = require('sqlite3').verbose();
+  const path = require('path');
+  const fs = require('fs');
 
-// Ensure database directory exists
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
+  const dbPath = process.env.DB_PATH || './database/bot.db';
+  const dbDir = path.dirname(dbPath);
 
-const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
-  if (err) {
-    console.error('Error opening database:', err);
-  } else {
-    console.log('Connected to SQLite database');
-    
-    // Enable WAL mode for better concurrent access
-    db.run('PRAGMA journal_mode=WAL', (err) => {
-      if (err) {
-        console.error('Error setting WAL mode:', err);
-      } else {
-        console.log('WAL mode enabled for better concurrent access');
-      }
-    });
-    
-    // Set busy timeout to wait if database is locked
-    db.run('PRAGMA busy_timeout=10000', (err) => {
-      if (err) {
-        console.error('Error setting busy timeout:', err);
-      } else {
-        console.log('Busy timeout set to 10 seconds');
-      }
-    });
+  // Ensure database directory exists
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
   }
-});
+
+  const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+    if (err) {
+      console.error('Error opening database:', err);
+    } else {
+      console.log('Connected to SQLite database');
+      
+      // Enable WAL mode for better concurrent access
+      db.run('PRAGMA journal_mode=WAL', (err) => {
+        if (err) {
+          console.error('Error setting WAL mode:', err);
+        } else {
+          console.log('WAL mode enabled for better concurrent access');
+        }
+      });
+      
+      // Set busy timeout to wait if database is locked
+      db.run('PRAGMA busy_timeout=10000', (err) => {
+        if (err) {
+          console.error('Error setting busy timeout:', err);
+        } else {
+          console.log('Busy timeout set to 10 seconds');
+        }
+      });
+    }
+  });
 
 function initDatabase() {
   db.serialize(() => {
@@ -236,4 +245,5 @@ const dbHelpers = {
   }
 };
 
-module.exports = { db, initDatabase, ...dbHelpers };
+  module.exports = { db, initDatabase, ...dbHelpers };
+}
