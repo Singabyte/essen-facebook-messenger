@@ -8,6 +8,9 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Trust proxy - required for DigitalOcean App Platform
+app.set('trust proxy', 1);
+
 // Initialize database
 const { initAdminTables } = require('./db/connection');
 initAdminTables();

@@ -7,6 +7,9 @@ const { initDatabase } = require('./database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy - required for DigitalOcean App Platform
+app.set('trust proxy', 1);
+
 // Initialize database
 initDatabase();
 
