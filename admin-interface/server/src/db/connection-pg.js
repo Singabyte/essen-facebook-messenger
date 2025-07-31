@@ -1,12 +1,16 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
+// For production environments with self-signed certificates
+if (process.env.NODE_ENV === 'production') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 // PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false,
-    require: true 
+    rejectUnauthorized: false
   } : false,
   max: 20,
   idleTimeoutMillis: 30000,
