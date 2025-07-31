@@ -3,6 +3,7 @@ import io from 'socket.io-client'
 import { useAuth } from '../context/AuthContext'
 
 const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000'
+const isProduction = import.meta.env.VITE_API_URL?.includes('ondigitalocean.app')
 
 export const useWebSocket = (events = []) => {
   const socketRef = useRef(null)
@@ -12,12 +13,15 @@ export const useWebSocket = (events = []) => {
   useEffect(() => {
     if (!user || !token) return
 
-    // Initialize socket connection
+    // Initialize socket connection with production-friendly settings
     socketRef.current = io(SOCKET_URL, {
       auth: {
         token: token
       },
-      transports: ['websocket', 'polling']
+      transports: isProduction ? ['polling', 'websocket'] : ['websocket', 'polling'],
+      timeout: 10000,
+      forceNew: true,
+      autoConnect: true
     })
 
     const socket = socketRef.current
@@ -37,6 +41,16 @@ export const useWebSocket = (events = []) => {
 
     socket.on('connect_error', (error) => {
       console.error('WebSocket connection error:', error.message)
+      console.error('Socket URL:', SOCKET_URL)
+      console.error('Is production:', isProduction)
+    })
+
+    socket.on('error', (error) => {
+      console.error('WebSocket error:', error)
+    })
+
+    socket.on('reconnect_error', (error) => {
+      console.error('WebSocket reconnection error:', error)
     })
 
     // Cleanup on unmount
