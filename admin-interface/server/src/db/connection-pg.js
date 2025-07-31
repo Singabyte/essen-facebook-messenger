@@ -9,10 +9,12 @@ if (process.env.NODE_ENV === 'production') {
 // PostgreSQL connection with proper SSL configuration for DigitalOcean
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? {
-    // For DigitalOcean managed databases, disable certificate verification
-    // This is safe for managed services within the same project
-    rejectUnauthorized: false
+  ssl: process.env.DATABASE_URL && process.env.NODE_ENV === 'production' ? {
+    // For DigitalOcean managed databases, disable certificate verification completely
+    // This is safe for managed services within the same cloud infrastructure
+    rejectUnauthorized: false,
+    requestCert: false,
+    agent: false
   } : false,
   max: 20,
   idleTimeoutMillis: 30000,
