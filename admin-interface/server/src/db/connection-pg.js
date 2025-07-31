@@ -45,17 +45,23 @@ async function initAdminTables() {
   }
 }
 
+// Helper to convert SQLite ? placeholders to PostgreSQL $1, $2, etc.
+function convertSqliteToPostgres(sql) {
+  let paramIndex = 1;
+  return sql.replace(/\?/g, () => `$${paramIndex++}`);
+}
+
 // Database helper functions
 const dbHelpers = {
   // Run a query that returns lastID
   run: async (sql, params = []) => {
     try {
       // Convert SQLite style queries to PostgreSQL
-      let pgSql = sql;
+      let pgSql = convertSqliteToPostgres(sql);
       
       // Handle INSERT queries with RETURNING
       if (sql.toLowerCase().includes('insert into') && !sql.toLowerCase().includes('returning')) {
-        pgSql = sql + ' RETURNING id';
+        pgSql = pgSql + ' RETURNING id';
       }
       
       const result = await pool.query(pgSql, params);
@@ -73,7 +79,8 @@ const dbHelpers = {
   // Get a single row
   get: async (sql, params = []) => {
     try {
-      const result = await pool.query(sql, params);
+      const pgSql = convertSqliteToPostgres(sql);
+      const result = await pool.query(pgSql, params);
       return result.rows[0] || null;
     } catch (err) {
       throw err;
@@ -83,7 +90,8 @@ const dbHelpers = {
   // Get all rows
   all: async (sql, params = []) => {
     try {
-      const result = await pool.query(sql, params);
+      const pgSql = convertSqliteToPostgres(sql);
+      const result = await pool.query(pgSql, params);
       return result.rows;
     } catch (err) {
       throw err;
@@ -93,10 +101,9 @@ const dbHelpers = {
   // Log audit event
   logAudit: async (adminId, action, resource, details = {}) => {
     try {
-      await pool.query(
-        'INSERT INTO audit_logs (admin_id, action, resource, details) VALUES ($1, $2, $3, $4)',
-        [adminId, action, resource, JSON.stringify(details)]
-      );
+      const sql = 'INSERT INTO audit_logs (admin_id, action, resource, details) VALUES (?, ?, ?, ?)';
+      const pgSql = convertSqliteToPostgres(sql);
+      await pool.query(pgSql, [adminId, action, resource, JSON.stringify(details)]);
     } catch (err) {
       console.error('Error logging audit:', err);
     }
