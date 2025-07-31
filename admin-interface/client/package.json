@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cp -r public/_redirects dist/ 2>/dev/null || true",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

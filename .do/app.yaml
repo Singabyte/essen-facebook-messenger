@@ -84,6 +84,7 @@ static_sites:
   source_dir: admin-interface/client
   build_command: npm install && npm run build
   output_dir: dist
+  catchall_document: index.html
   routes:
   - path: /admin
   envs:
