@@ -129,6 +129,23 @@ async function initDatabase() {
     `);
     console.log('Audit logs table ready');
 
+    // Create default admin user if none exists
+    const adminCheck = await pool.query('SELECT COUNT(*) as count FROM admin_users');
+    if (adminCheck.rows[0].count === 0) {
+      console.log('No admin users found, creating default admin...');
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = await bcrypt.hash('hello123', 10);
+      
+      const adminResult = await pool.query(
+        'INSERT INTO admin_users (username, password) VALUES ($1, $2) RETURNING id',
+        ['admin', hashedPassword]
+      );
+      console.log('✅ Default admin user created (username: admin, password: hello123)');
+      console.log(`   Admin user ID: ${adminResult.rows[0].id}`);
+    } else {
+      console.log(`Found ${adminCheck.rows[0].count} admin user(s)`);
+    }
+
     // Create indexes for better performance
     await pool.query('CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id)');
     await pool.query('CREATE INDEX IF NOT EXISTS idx_conversations_timestamp ON conversations(timestamp)');
