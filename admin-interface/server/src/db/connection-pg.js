@@ -1,20 +1,26 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-// For production environments with self-signed certificates
-if (process.env.NODE_ENV === 'production') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
-
-// PostgreSQL connection
+// PostgreSQL connection with proper SSL configuration for DigitalOcean
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false
+  ssl: process.env.DATABASE_URL ? {
+    // For DigitalOcean managed databases, we need to properly handle SSL
+    rejectUnauthorized: true,
+    // Allow self-signed certificates from DigitalOcean
+    checkServerIdentity: (host, cert) => {
+      // DigitalOcean managed databases use certificates that may not match hostname
+      // This is safe for managed services within the same project
+      return undefined;
+    },
+    // Set minimum TLS version
+    secureProtocol: 'TLSv1_2_method'
   } : false,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,
+  // Application name for monitoring
+  application_name: 'essen-admin-interface'
 });
 
 // Test connection
