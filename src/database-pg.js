@@ -1,20 +1,26 @@
 const { Pool } = require('pg');
 const fs = require('fs');
 
-// For production environments with self-signed certificates
-if (process.env.NODE_ENV === 'production') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
-
-// PostgreSQL connection
+// Enhanced PostgreSQL connection configuration for DigitalOcean
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false
+    rejectUnauthorized: false,
+    // Additional SSL options for DigitalOcean
+    servername: process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : undefined
   } : false,
-  max: 20,
+  // Connection pool settings optimized for DigitalOcean
+  max: process.env.NODE_ENV === 'production' ? 15 : 5,
+  min: 2,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000,
+  acquireTimeoutMillis: 60000,
+  // Query timeout for long-running queries
+  query_timeout: 60000,
+  // Statement timeout
+  statement_timeout: 30000,
+  // Application name for monitoring
+  application_name: 'essen-facebook-bot'
 });
 
 // Test connection

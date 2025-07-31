@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Admin Interface
 - `cd admin-interface/server && npm run dev` - Start admin backend (port 4000)
 - `cd admin-interface/client && npm run dev` - Start admin frontend (port 5173)
-- `node admin-interface/server/create-admin-direct.js` - Create admin user
+- `node admin-interface/server/create-admin-pg.js` - Create admin user (PostgreSQL)
 
 ### Testing
 - `node scripts/test-essen-bot.js` - Test ESSEN-specific bot responses
