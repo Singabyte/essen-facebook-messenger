@@ -27,6 +27,8 @@ services:
     type: SECRET
   - key: GEMINI_API_KEY
     type: SECRET
+  - key: DATABASE_URL
+    type: SECRET
   - key: DB_PATH
     value: /workspace/database/bot.db
   - key: PORT
@@ -51,6 +53,8 @@ services:
   - key: NODE_ENV
     value: production
   - key: JWT_SECRET
+    type: SECRET
+  - key: DATABASE_URL
     type: SECRET
   - key: PORT
     value: "4000"
