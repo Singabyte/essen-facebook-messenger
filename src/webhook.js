@@ -83,25 +83,35 @@ async function handleWebhookMessage(req, res) {
       const webhookEvent = entry.messaging[0];
       const senderId = webhookEvent.sender.id;
       
-      // Log webhook event
-      await logAnalytics('webhook_received', senderId, {
-        type: getEventType(webhookEvent),
-        timestamp: entry.time
-      });
+      // Log webhook event (with error handling to prevent timeouts)
+      try {
+        await logAnalytics('webhook_received', senderId, {
+          type: getEventType(webhookEvent),
+          timestamp: entry.time
+        });
+      } catch (dbError) {
+        console.warn('Database logging failed (non-critical):', dbError.message);
+        // Continue processing even if analytics logging fails
+      }
       
-      // Handle different types of events
-      if (webhookEvent.message) {
-        // Regular message
-        await messageHandler.handleMessage(webhookEvent);
-      } else if (webhookEvent.postback) {
-        // Postback event
-        await messageHandler.handlePostback(webhookEvent);
-      } else if (webhookEvent.read) {
-        // Message read event
-        console.log(`User ${senderId} read message`);
-      } else if (webhookEvent.delivery) {
-        // Message delivered event
-        console.log(`Message delivered to user ${senderId}`);
+      // Handle different types of events (with error handling)
+      try {
+        if (webhookEvent.message) {
+          // Regular message
+          await messageHandler.handleMessage(webhookEvent);
+        } else if (webhookEvent.postback) {
+          // Postback event
+          await messageHandler.handlePostback(webhookEvent);
+        } else if (webhookEvent.read) {
+          // Message read event
+          console.log(`User ${senderId} read message`);
+        } else if (webhookEvent.delivery) {
+          // Message delivered event
+          console.log(`Message delivered to user ${senderId}`);
+        }
+      } catch (handlerError) {
+        console.error('Message handler error (non-critical for webhook):', handlerError.message);
+        // Continue processing - don't let handler errors break the webhook response
       }
     }
     
