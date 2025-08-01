@@ -19,8 +19,8 @@ initializeFacebookFeatures().catch(console.error);
 
 // Custom middleware to capture raw body for webhook signature verification
 app.use((req, res, next) => {
-  // With DigitalOcean path stripping, webhook POST requests come to '/'
-  if (req.url === '/' && req.method === 'POST') {
+  // Capture raw body for webhook POST requests
+  if (req.url.startsWith('/webhook') && req.method === 'POST') {
     let rawBody = '';
     req.on('data', (chunk) => {
       rawBody += chunk.toString('utf8');
@@ -39,9 +39,8 @@ app.use((req, res, next) => {
   }
 });
 
-// Routes - mount webhook at root for DigitalOcean path stripping
-// When app.yaml has "path: /webhook", DO strips the prefix
-app.use('/', webhook);
+// Routes - mount webhook at /webhook to match Facebook configuration
+app.use('/webhook', webhook);
 
 // Middleware for other routes
 app.use(bodyParser.json());
@@ -160,7 +159,24 @@ app.get('/debug/env-check', (req, res) => {
   });
 });
 
-// Root endpoint - handled by webhook router when path stripping is enabled
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    name: 'ESSEN Facebook Messenger Bot',
+    status: 'Running',
+    version: '1.0.0',
+    endpoints: {
+      webhook: '/webhook',
+      health: '/health',
+      debug: {
+        version: '/debug/version',
+        envCheck: '/debug/env-check',
+        testMessage: '/debug/test-message (POST)'
+      }
+    },
+    message: 'Webhook is available at /webhook'
+  });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

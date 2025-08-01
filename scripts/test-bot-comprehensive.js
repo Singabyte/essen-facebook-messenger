@@ -67,11 +67,15 @@ async function runTests() {
   console.log(`${colors.yellow}Test 3: Webhook Verification${colors.reset}`);
   try {
     const webhook = await axios.get(`${PRODUCTION_URL}/webhook`);
-    console.log(`${colors.green}✓ PASSED${colors.reset} - Webhook endpoint is accessible\n`);
+    console.log(`  Status: ${webhook.data.name || 'Accessible'}`);
+    console.log(`${colors.green}✓ PASSED${colors.reset} - Webhook endpoint is accessible at /webhook\n`);
     passedTests++;
   } catch (error) {
     if (error.response && error.response.status === 400) {
       console.log(`${colors.green}✓ PASSED${colors.reset} - Webhook correctly requires parameters\n`);
+      passedTests++;
+    } else if (error.response && error.response.status === 403) {
+      console.log(`${colors.green}✓ PASSED${colors.reset} - Webhook requires valid verification token\n`);
       passedTests++;
     } else {
       console.log(`${colors.red}✗ FAILED${colors.reset} - ${error.message}\n`);
@@ -101,7 +105,7 @@ async function runTests() {
   try {
     const webhook = await axios.post(`${PRODUCTION_URL}/webhook`, testPayload);
     if (webhook.data === 'EVENT_RECEIVED') {
-      console.log(`${colors.green}✓ PASSED${colors.reset} - Webhook processes messages correctly\n`);
+      console.log(`${colors.green}✓ PASSED${colors.reset} - Webhook processes messages correctly at /webhook\n`);
       passedTests++;
     } else {
       console.log(`${colors.red}✗ FAILED${colors.reset} - Unexpected webhook response\n`);
