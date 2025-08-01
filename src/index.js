@@ -104,8 +104,19 @@ app.post('/debug/test-message', async (req, res) => {
   
   const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
   if (!PAGE_ACCESS_TOKEN) {
-    return res.status(500).json({ error: 'PAGE_ACCESS_TOKEN not configured' });
+    return res.status(500).json({ 
+      error: 'PAGE_ACCESS_TOKEN not configured',
+      env: process.env.NODE_ENV,
+      hasToken: false
+    });
   }
+  
+  console.log('Test message endpoint called:', {
+    recipientId,
+    message,
+    tokenLength: PAGE_ACCESS_TOKEN.length,
+    tokenPrefix: PAGE_ACCESS_TOKEN.substring(0, 10) + '...'
+  });
   
   try {
     const response = await axios({
@@ -118,6 +129,8 @@ app.post('/debug/test-message', async (req, res) => {
       }
     });
     
+    console.log('Test message sent successfully:', response.data);
+    
     res.json({
       success: true,
       messageId: response.data.message_id,
@@ -127,9 +140,24 @@ app.post('/debug/test-message', async (req, res) => {
     console.error('Test message error:', error.response?.data || error.message);
     res.status(error.response?.status || 500).json({
       success: false,
-      error: error.response?.data?.error || error.message
+      error: error.response?.data?.error || error.message,
+      details: error.response?.data
     });
   }
+});
+
+// Debug endpoint to check environment
+app.get('/debug/env-check', (req, res) => {
+  res.json({
+    environment: process.env.NODE_ENV,
+    hasPageAccessToken: !!process.env.PAGE_ACCESS_TOKEN,
+    hasVerifyToken: !!process.env.VERIFY_TOKEN,
+    hasAppSecret: !!process.env.APP_SECRET,
+    hasGeminiKey: !!process.env.GEMINI_API_KEY,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    tokenLength: process.env.PAGE_ACCESS_TOKEN?.length || 0,
+    port: process.env.PORT
+  });
 });
 
 // Root endpoint - handled by webhook router when path stripping is enabled

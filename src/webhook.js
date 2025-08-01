@@ -110,7 +110,12 @@ async function handleWebhookMessage(req, res) {
           console.log(`Message delivered to user ${senderId}`);
         }
       } catch (handlerError) {
-        console.error('Message handler error (non-critical for webhook):', handlerError.message);
+        console.error('Message handler error:', handlerError);
+        console.error('Full error details:', {
+          message: handlerError.message,
+          stack: handlerError.stack,
+          response: handlerError.response?.data
+        });
         // Continue processing - don't let handler errors break the webhook response
       }
     }

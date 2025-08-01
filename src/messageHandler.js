@@ -20,6 +20,18 @@ const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 // Core messaging functions
 async function callSendAPI(messageData) {
   try {
+    if (!process.env.PAGE_ACCESS_TOKEN) {
+      throw new Error('PAGE_ACCESS_TOKEN is not set');
+    }
+    
+    console.log('Sending message to Facebook:', JSON.stringify({
+      recipientId: messageData.recipient?.id,
+      messageType: messageData.message ? 'message' : 'action',
+      hasText: !!messageData.message?.text,
+      hasAttachment: !!messageData.message?.attachment,
+      hasQuickReplies: !!messageData.message?.quick_replies
+    }));
+    
     const response = await axios({
       method: 'post',
       url: `${FACEBOOK_API_URL}/me/messages`,
@@ -32,7 +44,25 @@ async function callSendAPI(messageData) {
     console.log('Message sent successfully:', response.data);
     return response.data;
   } catch (error) {
-    console.error('Failed to send message:', error.response?.data || error.message);
+    console.error('Failed to send message to Facebook');
+    console.error('Error details:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    
+    // Log specific Facebook error details
+    if (error.response?.data?.error) {
+      const fbError = error.response.data.error;
+      console.error('Facebook API Error:', {
+        message: fbError.message,
+        type: fbError.type,
+        code: fbError.code,
+        fbtrace_id: fbError.fbtrace_id
+      });
+    }
+    
     throw error;
   }
 }
@@ -65,13 +95,25 @@ async function sendTypingIndicator(recipientId, isTyping = true) {
 
 // Send quick reply
 async function sendQuickReply(recipientId, text, quickReplies) {
+  // Format quick replies properly for Facebook
+  const formattedQuickReplies = quickReplies.map(reply => {
+    if (typeof reply === 'string') {
+      return {
+        content_type: 'text',
+        title: reply,
+        payload: reply
+      };
+    }
+    return reply;
+  });
+  
   const messageData = {
     recipient: {
       id: recipientId
     },
     message: {
       text: text,
-      quick_replies: quickReplies
+      quick_replies: formattedQuickReplies
     }
   };
   
@@ -343,154 +385,6 @@ async function handlePostback(event) {
   }
 }
 
-// Get user info from Facebook
-async function getUserInfo(userId) {
-  try {
-    const response = await axios.get(`${FACEBOOK_API_URL}/${userId}`, {
-      params: {
-        fields: 'first_name,last_name,profile_pic',
-        access_token: process.env.PAGE_ACCESS_TOKEN
-      }
-    });
-    
-    return {
-      name: `${response.data.first_name} ${response.data.last_name || ''}`.trim(),
-      profile_pic: response.data.profile_pic
-    };
-  } catch (error) {
-    console.error('Error getting user info:', error);
-    return { name: null, profile_pic: null };
-  }
-}
-
-// Send text message
-async function sendTextMessage(recipientId, messageText) {
-  try {
-    await axios.post(
-      `${FACEBOOK_API_URL}/me/messages`,
-      {
-        recipient: { id: recipientId },
-        message: { text: messageText }
-      },
-      {
-        params: { access_token: process.env.PAGE_ACCESS_TOKEN }
-      }
-    );
-    
-    await logAnalytics('message_sent', recipientId, { type: 'text' });
-  } catch (error) {
-    console.error('Error sending message:', error.response?.data || error);
-    throw error;
-  }
-}
-
-// Send quick reply
-async function sendQuickReply(recipientId, text, quickReplies) {
-  try {
-    const message = {
-      text: text,
-      quick_replies: quickReplies.map(reply => ({
-        content_type: 'text',
-        title: reply,
-        payload: reply
-      }))
-    };
-    
-    await axios.post(
-      `${FACEBOOK_API_URL}/me/messages`,
-      {
-        recipient: { id: recipientId },
-        message: message
-      },
-      {
-        params: { access_token: process.env.PAGE_ACCESS_TOKEN }
-      }
-    );
-    
-    await logAnalytics('message_sent', recipientId, { type: 'quick_reply' });
-  } catch (error) {
-    console.error('Error sending quick reply:', error.response?.data || error);
-    // Fallback to regular text message
-    await sendTextMessage(recipientId, text);
-  }
-}
-
-// Send typing indicator
-async function sendTypingIndicator(recipientId, isTyping) {
-  try {
-    await axios.post(
-      `${FACEBOOK_API_URL}/me/messages`,
-      {
-        recipient: { id: recipientId },
-        sender_action: isTyping ? 'typing_on' : 'typing_off'
-      },
-      {
-        params: { access_token: process.env.PAGE_ACCESS_TOKEN }
-      }
-    );
-  } catch (error) {
-    console.error('Error sending typing indicator:', error.response?.data || error);
-  }
-}
-
-// Send button template with external URLs
-async function sendButtonTemplate(recipientId, text, buttons) {
-  try {
-    const message = {
-      attachment: {
-        type: 'template',
-        payload: {
-          template_type: 'button',
-          text: text,
-          buttons: buttons
-        }
-      }
-    };
-    
-    await axios.post(
-      `${FACEBOOK_API_URL}/me/messages`,
-      {
-        recipient: { id: recipientId },
-        message: message
-      },
-      {
-        params: { access_token: process.env.PAGE_ACCESS_TOKEN }
-      }
-    );
-    
-    await logAnalytics('message_sent', recipientId, { type: 'button_template' });
-  } catch (error) {
-    console.error('Error sending button template:', error.response?.data || error);
-    // Fallback to text message
-    await sendTextMessage(recipientId, text);
-  }
-}
-
-// Send showroom info with buttons
-async function sendShowroomInfoWithButtons(recipientId) {
-  // Facebook button templates have limited text space, so keep it concise
-  const showroomText = `🏢 ESSEN Showroom\n\n📍 36 Jalan Kilang Barat, S159366\n🕒 Daily: 11am-7pm\n📱 +65 6019 0775\n\n✨ Free consultation & refreshments!`;
-
-  const buttons = [
-    {
-      type: 'web_url',
-      url: 'https://wa.me/6560190775',
-      title: 'WhatsApp Us!'
-    },
-    {
-      type: 'web_url',
-      url: 'https://maps.app.goo.gl/5YNjVuRRjCyGjNuY7',
-      title: 'Get Directions'
-    },
-    {
-      type: 'web_url',
-      url: 'https://essen.sg/',
-      title: 'Visit Website'
-    }
-  ];
-
-  await sendButtonTemplate(recipientId, showroomText, buttons);
-}
 
 // ESSEN-specific message templates
 
@@ -717,6 +611,37 @@ async function handleAppointmentBooking(senderId, text, userInfo) {
   }
   
   return null; // Not appointment-related
+}
+
+// Send showroom info with buttons
+async function sendShowroomInfoWithButtons(recipientId) {
+  const showroomText = `📍 Visit our showroom!
+36 Jalan Kilang Barat
+Singapore 598576
+
+⏰ Open 11am-7pm daily
+
+Free consultation for your furniture needs!`;
+  
+  const buttons = [
+    {
+      type: 'phone_number',
+      title: 'Call Showroom',
+      payload: '+6560190775'
+    },
+    {
+      type: 'postback',
+      title: 'Book Consultation',
+      payload: 'BOOK_CONSULTATION'
+    },
+    {
+      type: 'web_url',
+      title: 'Get Directions',
+      url: 'https://goo.gl/maps/your-showroom-location'
+    }
+  ];
+
+  await sendButtonTemplate(recipientId, showroomText, buttons);
 }
 
 module.exports = {
