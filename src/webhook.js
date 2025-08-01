@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const messageHandler = require('./messageHandler');
-const { logAnalytics } = require('./database');
+const { db } = require('./database-pg');
+const { logAnalytics } = db;
 
 // Test endpoint to verify router is working
 router.get('/test', (req, res) => {

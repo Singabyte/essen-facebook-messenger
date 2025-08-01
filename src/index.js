@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const webhook = require('./webhook');
-const { initDatabase } = require('./database');
+const { initDatabase } = require('./database-pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;

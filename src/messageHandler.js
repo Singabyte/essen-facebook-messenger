@@ -1,14 +1,16 @@
 const axios = require('axios');
+const { db } = require('./database-pg');
 const { 
-  createOrUpdateUser, 
+  saveUser, 
   saveConversation, 
   getConversationHistory,
+  clearConversationHistory,
   getUserPreferences,
   saveUserPreferences,
   logAnalytics,
   saveAppointment,
   getUser
-} = require('./database');
+} = db;
 const { 
   generateResponseWithHistory, 
   generateQuickReplies,
@@ -181,7 +183,7 @@ async function handleMessage(event) {
     
     // Get user info and save/update
     const userInfo = await getUserInfo(senderId);
-    await createOrUpdateUser(senderId, userInfo.name, userInfo.profile_pic);
+    await saveUser(senderId, userInfo);
     
     // Send typing indicator
     await sendTypingIndicator(senderId, true);
