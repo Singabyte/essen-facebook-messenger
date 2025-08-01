@@ -93,6 +93,45 @@ app.get('/debug/version', (req, res) => {
   });
 });
 
+// Diagnostic endpoint to test message sending
+app.post('/debug/test-message', async (req, res) => {
+  const axios = require('axios');
+  const { recipientId, message = 'Test message from diagnostic endpoint' } = req.body;
+  
+  if (!recipientId) {
+    return res.status(400).json({ error: 'recipientId is required' });
+  }
+  
+  const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+  if (!PAGE_ACCESS_TOKEN) {
+    return res.status(500).json({ error: 'PAGE_ACCESS_TOKEN not configured' });
+  }
+  
+  try {
+    const response = await axios({
+      method: 'post',
+      url: 'https://graph.facebook.com/v18.0/me/messages',
+      params: { access_token: PAGE_ACCESS_TOKEN },
+      data: {
+        recipient: { id: recipientId },
+        message: { text: message }
+      }
+    });
+    
+    res.json({
+      success: true,
+      messageId: response.data.message_id,
+      recipientId: response.data.recipient_id
+    });
+  } catch (error) {
+    console.error('Test message error:', error.response?.data || error.message);
+    res.status(error.response?.status || 500).json({
+      success: false,
+      error: error.response?.data?.error || error.message
+    });
+  }
+});
+
 // Root endpoint - handled by webhook router when path stripping is enabled
 
 // Error handling middleware

@@ -17,6 +17,111 @@ const {
 
 const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 
+// Core messaging functions
+async function callSendAPI(messageData) {
+  try {
+    const response = await axios({
+      method: 'post',
+      url: `${FACEBOOK_API_URL}/me/messages`,
+      params: {
+        access_token: process.env.PAGE_ACCESS_TOKEN
+      },
+      data: messageData
+    });
+    
+    console.log('Message sent successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Failed to send message:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+// Send text message
+async function sendTextMessage(recipientId, messageText) {
+  const messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      text: messageText
+    }
+  };
+  
+  return callSendAPI(messageData);
+}
+
+// Send typing indicator
+async function sendTypingIndicator(recipientId, isTyping = true) {
+  const messageData = {
+    recipient: {
+      id: recipientId
+    },
+    sender_action: isTyping ? 'typing_on' : 'typing_off'
+  };
+  
+  return callSendAPI(messageData);
+}
+
+// Send quick reply
+async function sendQuickReply(recipientId, text, quickReplies) {
+  const messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      text: text,
+      quick_replies: quickReplies
+    }
+  };
+  
+  return callSendAPI(messageData);
+}
+
+// Send button template
+async function sendButtonTemplate(recipientId, text, buttons) {
+  const messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: {
+        type: 'template',
+        payload: {
+          template_type: 'button',
+          text: text,
+          buttons: buttons
+        }
+      }
+    }
+  };
+  
+  return callSendAPI(messageData);
+}
+
+// Get user info from Facebook
+async function getUserInfo(userId) {
+  try {
+    const response = await axios.get(`${FACEBOOK_API_URL}/${userId}`, {
+      params: {
+        fields: 'first_name,last_name,profile_pic',
+        access_token: process.env.PAGE_ACCESS_TOKEN
+      }
+    });
+    
+    return {
+      name: `${response.data.first_name} ${response.data.last_name || ''}`.trim(),
+      profile_pic: response.data.profile_pic
+    };
+  } catch (error) {
+    console.error('Error fetching user info:', error);
+    return {
+      name: 'Customer',
+      profile_pic: null
+    };
+  }
+}
+
 // Store appointment booking state
 const appointmentBookingState = new Map();
 
