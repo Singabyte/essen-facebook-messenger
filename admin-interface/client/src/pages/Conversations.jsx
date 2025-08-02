@@ -119,7 +119,10 @@ function Conversations() {
       minWidth: 200,
       render: (value, row) => (
         <Box display="flex" alignItems="center">
-          <Avatar sx={{ mr: 1, width: 32, height: 32 }}>
+          <Avatar 
+            src={row.profile_pic} 
+            sx={{ mr: 1, width: 32, height: 32 }}
+          >
             <Person />
           </Avatar>
           {value || 'Unknown User'}
@@ -220,7 +223,10 @@ function Conversations() {
                   User Information
                 </Typography>
                 <Box display="flex" alignItems="center" mb={2}>
-                  <Avatar sx={{ mr: 2 }}>
+                  <Avatar 
+                    src={selectedConversation?.profile_pic}
+                    sx={{ mr: 2 }}
+                  >
                     <Person />
                   </Avatar>
                   <Box>
