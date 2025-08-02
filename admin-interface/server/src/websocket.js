@@ -50,6 +50,7 @@ const initializeWebSocket = (server) => {
 
     // Join admin room
     socket.join('admins');
+    console.log(`Socket ${socket.id} joined 'admins' room`);
 
     // Handle disconnection
     socket.on('disconnect', () => {
@@ -58,9 +59,11 @@ const initializeWebSocket = (server) => {
 
     // Subscribe to specific events
     socket.on('subscribe', (events) => {
+      console.log(`Socket ${socket.id} subscribing to:`, events);
       if (Array.isArray(events)) {
         events.forEach(event => {
           socket.join(event);
+          console.log(`Socket ${socket.id} joined '${event}' room`);
         });
       }
     });
@@ -131,6 +134,9 @@ const emitToAdmins = (event, data) => {
 // Emit to specific rooms
 const emitToRoom = (room, event, data) => {
   if (io) {
+    const roomSockets = io.sockets.adapter.rooms.get(room);
+    const socketCount = roomSockets ? roomSockets.size : 0;
+    console.log(`Emitting '${event}' to room '${room}' (${socketCount} sockets)`);
     io.to(room).emit(event, data);
   }
 };
