@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const queries = require('../db/queries');
+const queries = require('../db/queries-pg');
 const authMiddleware = require('../middleware/auth');
 
 // Get all users
