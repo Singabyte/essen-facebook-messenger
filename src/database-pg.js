@@ -5,16 +5,8 @@ const fs = require('fs');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? {
-    // For DigitalOcean managed databases, we need to properly handle SSL
-    rejectUnauthorized: true,
-    // Allow self-signed certificates from DigitalOcean
-    checkServerIdentity: (host, cert) => {
-      // DigitalOcean managed databases use certificates that may not match hostname
-      // This is safe for managed services within the same project
-      return undefined;
-    },
-    // Set minimum TLS version
-    secureProtocol: 'TLSv1_2_method'
+    // For DigitalOcean managed databases, we need to accept self-signed certificates
+    rejectUnauthorized: false
   } : false,
   // Connection pool settings optimized for DigitalOcean
   max: process.env.NODE_ENV === 'production' ? 15 : 5,
@@ -30,17 +22,12 @@ const pool = new Pool({
   application_name: 'essen-facebook-bot'
 });
 
-// Test connection
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('Error connecting to PostgreSQL:', err);
-  } else {
-    console.log('Connected to PostgreSQL database');
-  }
-});
-
 async function initDatabase() {
   try {
+    // Test connection first
+    const testResult = await pool.query('SELECT NOW() as now');
+    console.log('Connected to PostgreSQL database at:', testResult.rows[0].now);
+    
     // Users table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
