@@ -180,7 +180,7 @@ async function checkGeminiApiHealth() {
     
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
     const start = Date.now();
     const result = await model.generateContent('Health check test');
