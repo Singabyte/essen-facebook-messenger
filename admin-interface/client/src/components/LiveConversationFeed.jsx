@@ -38,13 +38,15 @@ function LiveConversationFeed() {
           console.log('Duplicate conversation detected, ignoring:', data.id)
           return prev
         }
+        // Only increment count if it's actually a new conversation
+        setNewCount(prevCount => prevCount + 1)
+        
+        if (soundEnabled) {
+          audioRef.current.play().catch(e => console.log('Audio play failed:', e))
+        }
+        
         return [data, ...prev].slice(0, 10) // Keep last 10
       })
-      setNewCount(prev => prev + 1)
-      
-      if (soundEnabled) {
-        audioRef.current.play().catch(e => console.log('Audio play failed:', e))
-      }
     }
 
     on('conversation:new', handleNewConversation)

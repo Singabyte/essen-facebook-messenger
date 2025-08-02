@@ -113,13 +113,10 @@ const initializeWebSocket = (server) => {
       emitToAdmins('conversation:new', data);
       emitToRoom('conversations', 'conversation:new', data);
       
-      // If this user wasn't already active today, update the active user count
-      if (wasNewUser) {
-        emitToRoom('dashboard', 'stats:update', {
-          activeUsers: activeUsersToday.size,
-          todayConversations: todayConversationCount.count
-        });
-      }
+      // Always emit updated conversation count
+      emitToRoom('dashboard', 'stats:update', {
+        todayConversations: todayConversationCount.count
+      });
     });
     
     socket.on('user:new', (data) => {
@@ -174,9 +171,8 @@ const startPeriodicStatsUpdate = () => {
       const queries = require('./db/queries');
       const totalAppointments = await queries.analytics.getTotalAppointments();
       
-      // Emit stats update to dashboard subscribers
+      // Emit stats update to dashboard subscribers (only for live stats)
       emitToRoom('dashboard', 'stats:update', {
-        activeUsers: activeUsersToday.size,
         todayConversations: todayConversationCount.count,
         totalAppointments,
         timestamp: new Date().toISOString()

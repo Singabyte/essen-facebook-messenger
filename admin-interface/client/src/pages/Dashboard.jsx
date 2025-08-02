@@ -29,7 +29,6 @@ function Dashboard() {
   const [conversationStats, setConversationStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
   const [realtimeStats, setRealtimeStats] = useState({
-    activeUsers: 0,
     todayConversations: 0,
     totalAppointments: 0
   })
@@ -63,7 +62,6 @@ function Dashboard() {
     // Initialize realtime stats from fetched data
     if (analytics && conversationStats) {
       setRealtimeStats({
-        activeUsers: analytics.overview?.activeUsers || 0,
         todayConversations: conversationStats.todayConversations || 0,
         totalAppointments: analytics.overview?.totalAppointments || 0
       })
@@ -119,11 +117,10 @@ function Dashboard() {
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
               title="Active Users"
-              value={realtimeStats.activeUsers}
+              value={analytics?.overview?.activeUsers}
               previousValue={analytics?.overview?.totalUsers}
               icon={<TrendingUp />}
               loading={analyticsLoading}
-              realtime
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
