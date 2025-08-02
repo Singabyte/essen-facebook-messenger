@@ -21,6 +21,7 @@ const initializeAdminSocket = () => {
   console.log('Connecting to admin server:', socketUrl);
 
   // Connect to the /bot-connection namespace which doesn't require authentication
+  // In production, we need to use /api/socket.io/ for the client path
   const socketPath = process.env.NODE_ENV === 'production' ? '/api/socket.io/' : '/socket.io/';
   const fullSocketUrl = `${socketUrl}/bot-connection`;
   

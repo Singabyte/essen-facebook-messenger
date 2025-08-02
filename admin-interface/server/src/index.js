@@ -357,5 +357,6 @@ server.listen(PORT, () => {
   console.log(`Admin API server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
   console.log('Routes configured for both /api/* and /* paths');
-  console.log(`Socket.io configured with path: ${process.env.NODE_ENV === 'production' ? '/api/socket.io/' : '/socket.io/'}`);
+  console.log(`Socket.io configured with path: /socket.io/`);
+  console.log('Note: In production, DigitalOcean strips /api prefix from incoming requests');
 });

@@ -6,7 +6,8 @@ let io;
 
 const initializeWebSocket = (server) => {
   // Configure Socket.io with proper path handling
-  const socketPath = process.env.NODE_ENV === 'production' ? '/api/socket.io/' : '/socket.io/';
+  // In production, DigitalOcean strips /api prefix, so Socket.io should use /socket.io/
+  const socketPath = '/socket.io/';
   
   io = new Server(server, {
     cors: {
@@ -20,7 +21,9 @@ const initializeWebSocket = (server) => {
     // Allow Socket.io to serve its client files
     serveClient: true,
     // Add trailing slash handling
-    addTrailingSlash: true
+    addTrailingSlash: true,
+    // Configure transports
+    transports: ['polling', 'websocket']
   });
   
   console.log(`Socket.io initialized with path: ${socketPath}`);
