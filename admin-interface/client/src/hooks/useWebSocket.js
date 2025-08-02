@@ -31,7 +31,7 @@ export const useWebSocket = (events = []) => {
       auth: {
         token: token
       },
-      path: '/socket.io/',
+      path: isProduction ? '/api/socket.io/' : '/socket.io/',
       transports: isProduction ? ['polling', 'websocket'] : ['websocket', 'polling'],
       timeout: 10000,
       forceNew: true,
