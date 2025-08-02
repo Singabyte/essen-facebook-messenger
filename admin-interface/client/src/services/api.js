@@ -68,7 +68,21 @@ export const analyticsAPI = {
   getOverview: (params) => api.get('/analytics/overview', { params }),
   getTimeline: (params) => api.get('/analytics/timeline', { params }),
   getCommands: () => api.get('/analytics/commands'),
-  export: (params) => api.get('/analytics/export', { params }),
+  getBusinessMetrics: (days) => api.get('/analytics/business-metrics', { params: { days } }),
+  getUserEngagement: (limit) => api.get('/analytics/user-engagement', { params: { limit } }),
+  getConversionFunnel: () => api.get('/analytics/conversion-funnel'),
+  getProductTrends: (days) => api.get('/analytics/product-trends', { params: { days } }),
+  getAppointmentAnalytics: (days) => api.get('/analytics/appointments', { params: { days } }),
+  getPeakHours: (days) => api.get('/analytics/peak-hours', { params: { days } }),
+  getSatisfaction: (days) => api.get('/analytics/satisfaction', { params: { days } }),
+  getPerformance: (days) => api.get('/analytics/performance', { params: { days } }),
+  getDatabaseStats: () => api.get('/analytics/database-stats'),
+  getSlowQueries: (limit) => api.get('/analytics/slow-queries', { params: { limit } }),
+  getPredictions: (days) => api.get('/analytics/predictions', { params: { days } }),
+  getBusinessReport: (period) => api.get('/analytics/business-report', { params: { period } }),
+  exportData: (type, format, startDate, endDate) => api.get('/analytics/export', { 
+    params: { type, format, startDate, endDate } 
+  }),
 }
 
 // Knowledge Base API

@@ -319,6 +319,8 @@ app.use('/bot-config', require('./routes/bot-config'));
 app.use('/api/bot-config', require('./routes/bot-config'));
 app.use('/faqs', require('./routes/faqs'));
 app.use('/api/faqs', require('./routes/faqs'));
+app.use('/monitoring', require('./routes/monitoring'));
+app.use('/api/monitoring', require('./routes/monitoring'));
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -336,7 +338,8 @@ app.get('/', (req, res) => {
       knowledgeBase: '/knowledge-base',
       templates: '/templates',
       botConfig: '/bot-config',
-      faqs: '/faqs'
+      faqs: '/faqs',
+      monitoring: '/monitoring'
     }
   });
 });

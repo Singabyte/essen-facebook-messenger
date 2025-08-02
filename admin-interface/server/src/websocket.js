@@ -129,6 +129,23 @@ const initializeWebSocket = (server) => {
       console.log('Bot event received: appointment:new');
       emitToAdmins('appointment:new', data);
       emitToRoom('appointments', 'appointment:new', data);
+      
+      // Update appointment analytics in real-time
+      emitToRoom('analytics', 'appointment:analytics:update', {
+        type: 'new_appointment',
+        data: data,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    socket.on('analytics:metric:update', (data) => {
+      console.log('Bot event received: analytics:metric:update');
+      emitToRoom('analytics', 'metric:update', data);
+    });
+
+    socket.on('performance:query', (data) => {
+      console.log('Bot event received: performance:query');
+      emitToRoom('analytics', 'performance:query', data);
     });
     
     socket.on('disconnect', () => {
@@ -147,15 +164,13 @@ const startPeriodicStatsUpdate = () => {
   // Initialize counters from database on startup
   const initializeCounters = async () => {
     try {
-      const queries = require('./db/queries');
-      const todayUsers = await queries.analytics.getTodayActiveUsers();
-      const todayConvCount = await queries.conversations.getTodayCount();
+      const queries = require('./db/queries-pg');
+      const overview = await queries.analytics.getOverview();
       
-      // Initialize sets and counters
-      todayUsers.forEach(user => activeUsersToday.add(user.user_id));
-      todayConversationCount.count = todayConvCount;
+      // Initialize counters with current data
+      todayConversationCount.count = overview.totalConversations || 0;
       
-      console.log(`Initialized counters - Active users: ${activeUsersToday.size}, Today's conversations: ${todayConversationCount.count}`);
+      console.log(`Initialized counters - Today's conversations: ${todayConversationCount.count}`);
     } catch (error) {
       console.error('Error initializing counters:', error);
     }
@@ -163,24 +178,77 @@ const startPeriodicStatsUpdate = () => {
   
   initializeCounters();
   
-  // Send periodic updates
+  // Send periodic updates for dashboard
   setInterval(async () => {
     try {
       resetDailyCounters(); // Check if it's a new day
       
-      const queries = require('./db/queries');
-      const totalAppointments = await queries.analytics.getTotalAppointments();
+      const queries = require('./db/queries-pg');
+      const overview = await queries.analytics.getOverview();
       
-      // Emit stats update to dashboard subscribers (only for live stats)
+      // Emit stats update to dashboard subscribers
       emitToRoom('dashboard', 'stats:update', {
         todayConversations: todayConversationCount.count,
-        totalAppointments,
+        totalAppointments: overview.totalAppointments,
+        activeUsers: overview.activeUsers,
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Error updating stats:', error);
+      console.error('Error updating dashboard stats:', error);
     }
   }, 30000); // Update every 30 seconds
+
+  // Send periodic analytics updates
+  setInterval(async () => {
+    try {
+      const queries = require('./db/queries-pg');
+      
+      // Get real-time analytics data
+      const [
+        overview,
+        conversionFunnel,
+        peakHours,
+        satisfaction
+      ] = await Promise.all([
+        queries.analytics.getOverview(),
+        queries.analytics.getConversionFunnel(),
+        queries.analytics.getPeakUsageHours(1), // Last hour
+        queries.analytics.getUserSatisfactionMetrics(1) // Last day
+      ]);
+
+      // Emit analytics updates
+      emitToRoom('analytics', 'analytics:realtime:update', {
+        overview,
+        conversionFunnel,
+        currentHourActivity: peakHours[0] || {},
+        satisfaction,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Error updating analytics:', error);
+    }
+  }, 60000); // Update analytics every minute
+
+  // Send performance metrics updates
+  setInterval(async () => {
+    try {
+      const queries = require('./db/queries-pg');
+      const [performance, connectionStats] = await Promise.all([
+        queries.analytics.getPerformanceMetrics(1), // Last day
+        queries.analytics.getDatabaseStats()
+      ]);
+
+      emitToRoom('analytics', 'performance:update', {
+        metrics: performance,
+        connections: connectionStats.connections,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Error updating performance metrics:', error);
+    }
+  }, 120000); // Update performance every 2 minutes
 };
 
 // Emit events to admin clients
@@ -223,6 +291,28 @@ const botEventHandlers = {
 
   systemStatus: (status) => {
     emitToAdmins('system:status', status);
+  },
+
+  // New analytics-specific events
+  analyticsMetricUpdate: (metricData) => {
+    emitToRoom('analytics', 'metric:update', metricData);
+  },
+
+  performanceAlert: (alertData) => {
+    emitToAdmins('performance:alert', alertData);
+    emitToRoom('analytics', 'performance:alert', alertData);
+  },
+
+  slowQueryDetected: (queryData) => {
+    emitToRoom('analytics', 'slow-query:detected', queryData);
+  },
+
+  businessMetricUpdate: (metrics) => {
+    emitToRoom('analytics', 'business-metrics:update', metrics);
+  },
+
+  realtimeUpdate: (updateData) => {
+    emitToRoom('analytics', 'realtime:update', updateData);
   }
 };
 

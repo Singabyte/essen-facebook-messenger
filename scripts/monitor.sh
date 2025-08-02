@@ -1,20 +1,29 @@
 #!/bin/bash
 
-# Enhanced Monitoring script for Facebook Messenger Bot with Socket.io and Template Cache monitoring
+# Comprehensive Monitoring script for ESSEN Facebook Messenger Bot
+# Supports Prometheus metrics, structured logging, and alerting
 
 # Configuration
-BOT_URL="http://localhost:3000"
-ADMIN_API_URL="http://localhost:4000"
-LOG_FILE="/var/log/bot-alerts.log"
-METRICS_FILE="/var/log/bot-metrics.log"
-MEMORY_THRESHOLD=700
-ERROR_THRESHOLD=10
-RESPONSE_TIME_THRESHOLD=2000
-TEMPLATE_CACHE_HIT_RATIO_THRESHOLD=0.8
+BOT_URL="${BOT_URL:-http://localhost:3000}"
+ADMIN_API_URL="${ADMIN_API_URL:-http://localhost:4000}"
+LOG_DIR="${LOG_DIR:-/var/log/essen-bot}"
+ALERT_LOG="$LOG_DIR/alerts.log"
+METRICS_LOG="$LOG_DIR/metrics.log"
+HEALTH_LOG="$LOG_DIR/health-checks.log"
 
-# Create log files if they don't exist
-mkdir -p /var/log
-touch $LOG_FILE $METRICS_FILE
+# Thresholds
+MEMORY_THRESHOLD=${MEMORY_THRESHOLD:-700}
+ERROR_THRESHOLD=${ERROR_THRESHOLD:-10}
+RESPONSE_TIME_THRESHOLD=${RESPONSE_TIME_THRESHOLD:-2000}
+TEMPLATE_CACHE_HIT_RATIO_THRESHOLD=${TEMPLATE_CACHE_HIT_RATIO_THRESHOLD:-0.8}
+HUMAN_INTERVENTION_THRESHOLD=${HUMAN_INTERVENTION_THRESHOLD:-5}
+
+# Slack webhook for alerts (optional)
+SLACK_WEBHOOK_URL="${SLACK_WEBHOOK_URL:-}"
+
+# Create log directories and files
+mkdir -p "$LOG_DIR"
+touch "$ALERT_LOG" "$METRICS_LOG" "$HEALTH_LOG"
 
 # Check bot health
 check_health() {
@@ -217,17 +226,95 @@ check_database_performance() {
     return 0
 }
 
-# Send alert (enhanced with different alert levels)
+# Send alert (enhanced with different alert levels and Slack integration)
 send_alert() {
     local message=$1
     local level=${2:-"WARNING"}
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
-    echo "[$timestamp] $level: $message" >> $LOG_FILE
+    echo "[$timestamp] $level: $message" >> "$ALERT_LOG"
     echo "🚨 $level: $message"
     
-    # Add email/slack notification here if needed
-    # Example: curl -X POST -H 'Content-type: application/json' --data '{"text":"Bot Alert: '$message'"}' $SLACK_WEBHOOK_URL
+    # Send to Slack if webhook URL is configured
+    if [ -n "$SLACK_WEBHOOK_URL" ]; then
+        send_slack_alert "$message" "$level"
+    fi
+}
+
+# Send Slack alert
+send_slack_alert() {
+    local message=$1
+    local level=$2
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # Determine emoji and color based on level
+    local emoji color
+    case "$level" in
+        "CRITICAL")
+            emoji="🚨"
+            color="danger"
+            ;;
+        "WARNING")
+            emoji="⚠️"
+            color="warning"
+            ;;
+        "INFO")
+            emoji="ℹ️"
+            color="good"
+            ;;
+        *)
+            emoji="🔔"
+            color="#36a64f"
+            ;;
+    esac
+    
+    # Create Slack payload
+    local payload=$(cat <<EOF
+{
+    "text": "${emoji} ESSEN Bot Alert: ${level}",
+    "attachments": [
+        {
+            "color": "${color}",
+            "fields": [
+                {
+                    "title": "Severity",
+                    "value": "${level}",
+                    "short": true
+                },
+                {
+                    "title": "Time",
+                    "value": "${timestamp}",
+                    "short": true
+                },
+                {
+                    "title": "Message",
+                    "value": "${message}",
+                    "short": false
+                },
+                {
+                    "title": "Host",
+                    "value": "$(hostname)",
+                    "short": true
+                }
+            ]
+        }
+    ]
+}
+EOF
+    )
+    
+    # Send to Slack
+    if curl -X POST -H 'Content-type: application/json' \
+            --data "$payload" \
+            --max-time 10 \
+            --silent \
+            "$SLACK_WEBHOOK_URL" >/dev/null 2>&1; then
+        echo "  📤 Slack alert sent successfully"
+        log_health_event "INFO" "slack_alert_sent" "$level: $message"
+    else
+        echo "  ❌ Failed to send Slack alert"
+        log_health_event "WARNING" "slack_alert_failed" "Failed to send $level alert to Slack"
+    fi
 }
 
 # Log metrics with timestamp
@@ -239,66 +326,172 @@ log_metric() {
     echo "[$timestamp] METRIC: $metric_name=$metric_value" >> $METRICS_FILE
 }
 
+# Comprehensive health check using new endpoints
+comprehensive_health_check() {
+    echo "🏥 Running comprehensive health check..."
+    
+    local health_data
+    health_data=$(curl -s "$BOT_URL/debug/health-comprehensive" 2>/dev/null)
+    
+    if [ $? -ne 0 ] || [ "$health_data" = "" ]; then
+        log_health_event "CRITICAL" "comprehensive_health_check_failed" "Cannot reach comprehensive health endpoint"
+        return 1
+    fi
+    
+    # Parse JSON response
+    local overall_health
+    overall_health=$(echo "$health_data" | jq -r '.overall // "unknown"' 2>/dev/null)
+    
+    case "$overall_health" in
+        "healthy")
+            echo "✅ Overall system health: HEALTHY"
+            log_health_event "INFO" "system_health" "healthy"
+            ;;
+        "degraded")
+            echo "⚠️ Overall system health: DEGRADED"
+            log_health_event "WARNING" "system_health" "degraded"
+            send_alert "System health degraded. Some services may be experiencing issues." "WARNING"
+            ;;
+        "unhealthy")
+            echo "❌ Overall system health: UNHEALTHY"
+            log_health_event "CRITICAL" "system_health" "unhealthy"
+            send_alert "System health critical. Multiple services are failing." "CRITICAL"
+            ;;
+        *)
+            echo "❓ Overall system health: UNKNOWN"
+            log_health_event "WARNING" "system_health" "unknown"
+            ;;
+    esac
+    
+    # Check individual services
+    echo "$health_data" | jq -r '.services | to_entries[] | "\(.key):\(.value.healthy):\(.value.status):\(.value.error // "none")"' 2>/dev/null | while IFS=: read -r service healthy status error; do
+        if [ "$healthy" = "true" ]; then
+            echo "  ✅ $service: $status"
+        else
+            echo "  ❌ $service: $status ($error)"
+            log_health_event "ERROR" "service_unhealthy" "$service: $error"
+        fi
+    done
+    
+    return 0
+}
+
+# Fetch and analyze Prometheus metrics
+fetch_prometheus_metrics() {
+    echo "📊 Fetching Prometheus metrics..."
+    
+    local metrics_data
+    metrics_data=$(curl -s "$BOT_URL/metrics" 2>/dev/null)
+    
+    if [ $? -ne 0 ] || [ "$metrics_data" = "" ]; then
+        log_health_event "WARNING" "metrics_fetch_failed" "Cannot reach metrics endpoint"
+        return 1
+    fi
+    
+    # Extract key metrics
+    local memory_usage
+    local error_rate
+    local response_time
+    
+    memory_usage=$(echo "$metrics_data" | grep "essen_bot_process_resident_memory_bytes" | awk '{print $2}' | head -1)
+    error_rate=$(echo "$metrics_data" | grep "essen_bot_http_requests_total.*5.." | awk '{print $2}' | awk '{sum+=$1} END {print sum/NR}')
+    response_time=$(echo "$metrics_data" | grep "essen_bot_http_request_duration_seconds_bucket" | grep "le=\"1\"" | awk '{print $2}' | head -1)
+    
+    # Convert memory from bytes to MB
+    if [ "$memory_usage" != "" ]; then
+        memory_mb=$((memory_usage / 1024 / 1024))
+        echo "  Memory usage: ${memory_mb}MB"
+        log_metric "memory_usage_mb" "$memory_mb"
+        
+        if [ $memory_mb -gt $MEMORY_THRESHOLD ]; then
+            send_alert "High memory usage: ${memory_mb}MB (threshold: ${MEMORY_THRESHOLD}MB)" "CRITICAL"
+        fi
+    fi
+    
+    # Log other metrics
+    [ "$error_rate" != "" ] && log_metric "error_rate" "$error_rate"
+    [ "$response_time" != "" ] && log_metric "response_time" "$response_time"
+    
+    return 0
+}
+
+# Enhanced alerting system
+check_alerting_rules() {
+    echo "🚨 Checking alerting rules..."
+    
+    # This would integrate with the Node.js alerting system
+    # For now, we'll use basic shell-based checks
+    
+    # Check if bot is responding
+    if ! curl -s "$BOT_URL/health" >/dev/null 2>&1; then
+        send_alert "Bot service is not responding" "CRITICAL"
+    fi
+    
+    # Check if admin API is responding
+    if ! curl -s "$ADMIN_API_URL/health" >/dev/null 2>&1; then
+        send_alert "Admin API is not responding" "WARNING"
+    fi
+    
+    return 0
+}
+
+# Enhanced logging functions
+log_health_event() {
+    local level=$1
+    local event=$2
+    local message=$3
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+    
+    echo "[$timestamp] [$level] $event: $message" >> "$HEALTH_LOG"
+}
+
 # Main monitoring function
 main_monitoring() {
-    echo "🔍 Starting enhanced bot monitoring at $(date)..."
+    local start_time=$(date +%s)
+    echo "🔍 Starting comprehensive bot monitoring at $(date)..."
     echo "=========================================="
     
-    # Check basic health
-    echo "1. Checking bot health..."
-    if ! check_health "$BOT_URL" "Bot"; then
-        echo "❌ Bot health check failed. Attempting restart..."
-        pm2 restart facebook-bot
-        
-        sleep 15
-        
-        if ! check_health "$BOT_URL" "Bot"; then
-            send_alert "Bot failed to restart. Manual intervention required." "CRITICAL"
-            exit 1
-        else
-            send_alert "Bot was down but has been successfully restarted." "INFO"
-        fi
-    else
-        echo "✅ Bot health check passed"
-    fi
+    # 1. Comprehensive health check
+    echo "1. Running comprehensive health check..."
+    comprehensive_health_check
     
-    # Check admin API health
-    echo "2. Checking admin API health..."
-    if ! check_health "$ADMIN_API_URL" "Admin API"; then
-        send_alert "Admin API health check failed" "WARNING"
-    else
-        echo "✅ Admin API health check passed"
-    fi
+    # 2. Fetch Prometheus metrics
+    echo "2. Fetching Prometheus metrics..."
+    fetch_prometheus_metrics
     
-    # Check Socket.io
+    # 3. Check specific components (legacy checks for compatibility)
     echo "3. Checking Socket.io..."
     check_socketio
     
-    # Check template cache
     echo "4. Checking template cache..."
     check_template_cache
     
-    # Check human intervention system
     echo "5. Checking human intervention system..."
     check_human_intervention
     
-    # Check system resources
     echo "6. Checking system resources..."
     check_system_resources
     
-    # Check error logs
     echo "7. Analyzing error logs..."
     check_error_logs
     
-    # Check database performance
     echo "8. Checking database performance..."
     check_database_performance
     
+    # 4. Run alerting rules
+    echo "9. Checking alerting rules..."
+    check_alerting_rules
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
     echo "=========================================="
-    echo "✅ Monitoring check completed successfully at $(date)"
+    echo "✅ Monitoring check completed in ${duration}s at $(date)"
     
     # Log monitoring completion
     log_metric "monitoring_completed" 1
+    log_metric "monitoring_duration_seconds" "$duration"
+    log_health_event "INFO" "monitoring_completed" "Check completed in ${duration}s"
 }
 
 # Run monitoring

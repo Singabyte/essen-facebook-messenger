@@ -33,6 +33,7 @@ import {
   Campaign,
   Build,
   HelpOutline,
+  MonitorHeart,
 } from '@mui/icons-material'
 
 const drawerWidth = 240
@@ -47,6 +48,7 @@ const menuItems = [
   { text: 'Bot Configuration', icon: <Build />, path: '/bot-configuration' },
   { text: 'FAQ Management', icon: <HelpOutline />, path: '/faqs' },
   { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
+  { text: 'Monitoring', icon: <MonitorHeart />, path: '/monitoring' },
   { text: 'Settings', icon: <Settings />, path: '/settings' },
 ]
 

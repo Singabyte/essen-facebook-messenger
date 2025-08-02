@@ -4,18 +4,49 @@ const bodyParser = require('body-parser');
 const webhook = require('./webhook');
 const { initDatabase } = require('./database-pg');
 
+// Import monitoring utilities
+const { loggers } = require('./utils/logger');
+const { register, metricsCollector } = require('./utils/metrics');
+const { 
+  correlationIdMiddleware,
+  performanceMiddleware,
+  errorMonitoringMiddleware,
+  securityMiddleware,
+  healthCheckMiddleware,
+  createRateLimiter
+} = require('./middleware/monitoring');
+const { performComprehensiveHealthCheck } = require('./utils/healthcheck');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Trust proxy - required for DigitalOcean App Platform
 app.set('trust proxy', 1);
 
+// Add monitoring middleware early in the chain
+app.use(correlationIdMiddleware);
+app.use(performanceMiddleware);
+app.use(securityMiddleware);
+app.use(healthCheckMiddleware);
+
+// Rate limiting for general API endpoints
+app.use('/debug', createRateLimiter(15 * 60 * 1000, 100, 'Too many debug requests'));
+app.use('/metrics', createRateLimiter(60 * 1000, 30, 'Too many metrics requests'));
+
 // Initialize database
 initDatabase();
 
 // Initialize Facebook features
 const { initializeFacebookFeatures } = require('./facebook-integration');
-initializeFacebookFeatures().catch(console.error);
+initializeFacebookFeatures()
+  .then(() => {
+    loggers.bot.info('Facebook features initialized successfully');
+    metricsCollector.updateSystemHealth('facebook', true);
+  })
+  .catch(error => {
+    loggers.bot.error('Failed to initialize Facebook features', { error: error.message });
+    metricsCollector.updateSystemHealth('facebook', false);
+  });
 
 // Initialize admin Socket.io client
 const { initializeAdminSocket } = require('./admin-socket-client');
@@ -50,10 +81,32 @@ app.use('/webhook', webhook);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+    
+    loggers.monitoring.debug('Metrics endpoint accessed', {
+      correlationId: req.correlationId
+    });
+  } catch (error) {
+    loggers.monitoring.error('Failed to generate metrics', {
+      error: error.message,
+      correlationId: req.correlationId
+    });
+    res.status(500).end('Error generating metrics');
+  }
+});
+
 // Health check - IMPORTANT: This must come AFTER webhook router
 // Otherwise it might interfere with webhook routes
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    correlationId: req.correlationId 
+  });
 });
 
 // Diagnostic endpoint
@@ -283,84 +336,33 @@ app.get('/debug/database-stats', (req, res) => {
 
 // Comprehensive health check endpoint
 app.get('/debug/health-comprehensive', async (req, res) => {
-  const healthChecks = {
-    timestamp: new Date().toISOString(),
-    overall: 'healthy',
-    services: {}
-  };
-  
   try {
-    // Check basic service health
-    healthChecks.services.api = {
-      status: 'healthy',
-      responseTime: Date.now()
-    };
+    loggers.monitoring.info('Comprehensive health check requested', {
+      correlationId: req.correlationId
+    });
     
-    // Check Socket.io connection
-    try {
-      const { isConnected } = require('./admin-socket-client');
-      healthChecks.services.socketio = {
-        status: isConnected() ? 'healthy' : 'degraded',
-        connected: isConnected()
-      };
-    } catch (error) {
-      healthChecks.services.socketio = {
-        status: 'unhealthy',
-        error: error.message
-      };
-      healthChecks.overall = 'degraded';
-    }
+    const healthChecks = await performComprehensiveHealthCheck();
     
-    // Check template cache
-    healthChecks.services.templateCache = {
-      status: 'healthy',
-      note: 'Mock implementation - replace with actual cache check'
-    };
+    // Set appropriate HTTP status based on overall health
+    const statusCode = healthChecks.overall === 'healthy' ? 200 : 
+                      healthChecks.overall === 'degraded' ? 200 : 503;
     
-    // Check database connectivity
-    try {
-      // Mock database check - replace with actual database ping
-      healthChecks.services.database = {
-        status: 'healthy',
-        note: 'Mock implementation - replace with actual database ping'
-      };
-    } catch (error) {
-      healthChecks.services.database = {
-        status: 'unhealthy',
-        error: error.message
-      };
-      healthChecks.overall = 'unhealthy';
-    }
-    
-    // Check Gemini AI availability
-    try {
-      // Mock AI check - could be replaced with actual test request
-      healthChecks.services.geminiAI = {
-        status: process.env.GEMINI_API_KEY ? 'healthy' : 'misconfigured',
-        configured: !!process.env.GEMINI_API_KEY
-      };
-    } catch (error) {
-      healthChecks.services.geminiAI = {
-        status: 'unhealthy',
-        error: error.message
-      };
-    }
-    
-    // Check Facebook API configuration
-    healthChecks.services.facebookAPI = {
-      status: (process.env.PAGE_ACCESS_TOKEN && process.env.VERIFY_TOKEN && process.env.APP_SECRET) ? 'healthy' : 'misconfigured',
-      configured: !!(process.env.PAGE_ACCESS_TOKEN && process.env.VERIFY_TOKEN && process.env.APP_SECRET)
-    };
-    
-    res.json(healthChecks);
+    res.status(statusCode).json({
+      ...healthChecks,
+      correlationId: req.correlationId
+    });
     
   } catch (error) {
-    console.error('Comprehensive health check error:', error);
+    loggers.monitoring.error('Comprehensive health check failed', {
+      error: error.message,
+      correlationId: req.correlationId
+    });
+    
     res.status(500).json({
       timestamp: new Date().toISOString(),
       overall: 'unhealthy',
       error: error.message,
-      services: healthChecks.services
+      correlationId: req.correlationId
     });
   }
 });
@@ -397,13 +399,90 @@ app.get('/', (req, res) => {
 });
 
 // Error handling middleware
+app.use(errorMonitoringMiddleware);
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  loggers.bot.error('Unhandled application error', {
+    error: {
+      message: err.message,
+      stack: err.stack,
+      name: err.name
+    },
+    request: {
+      method: req.method,
+      url: req.url,
+      correlationId: req.correlationId
+    }
+  });
+  
+  res.status(500).json({ 
+    error: 'Something went wrong!',
+    correlationId: req.correlationId
+  });
 });
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
+  loggers.bot.info('ESSEN Facebook Messenger Bot started', {
+    port: PORT,
+    environment: process.env.NODE_ENV,
+    nodeVersion: process.version,
+    platform: process.platform,
+    memoryUsage: process.memoryUsage()
+  });
+  
+  // Record deployment
+  metricsCollector.recordDeployment();
+  
   console.log(`Bot server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`Monitoring endpoints:`);
+  console.log(`  - Health: http://localhost:${PORT}/health`);
+  console.log(`  - Metrics: http://localhost:${PORT}/metrics`);
+  console.log(`  - Comprehensive Health: http://localhost:${PORT}/debug/health-comprehensive`);
+});
+
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  loggers.bot.info('SIGTERM received, shutting down gracefully');
+  
+  server.close(() => {
+    loggers.bot.info('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  loggers.bot.info('SIGINT received, shutting down gracefully');
+  
+  server.close(() => {
+    loggers.bot.info('Server closed');
+    process.exit(0);
+  });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  loggers.bot.error('Uncaught exception', {
+    error: {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    }
+  });
+  
+  // Give time for logs to flush before exiting
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  loggers.bot.error('Unhandled promise rejection', {
+    reason: reason instanceof Error ? {
+      message: reason.message,
+      stack: reason.stack,
+      name: reason.name
+    } : reason,
+    promise: promise.toString()
+  });
 });

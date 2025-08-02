@@ -8,6 +8,8 @@ import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Conversations from './pages/Conversations'
 import Appointments from './pages/Appointments'
+import Analytics from './pages/Analytics'
+import Monitoring from './pages/Monitoring'
 import KnowledgeBase from './pages/KnowledgeBase'
 import PromotionTemplates from './pages/PromotionTemplates'
 import BotConfiguration from './pages/BotConfiguration'
@@ -37,7 +39,8 @@ function App() {
                     <Route path="/templates" element={<PromotionTemplates />} />
                     <Route path="/bot-configuration" element={<BotConfiguration />} />
                     <Route path="/faqs" element={<FAQs />} />
-                    <Route path="/analytics" element={<div>Analytics</div>} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/monitoring" element={<Monitoring />} />
                     <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </Layout>
