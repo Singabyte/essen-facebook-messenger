@@ -3,13 +3,12 @@ const router = express.Router();
 const fs = require('fs').promises;
 const path = require('path');
 
-// Use different path resolution based on environment
-const KB_DIR = process.env.NODE_ENV === 'production' 
-  ? path.join(process.cwd(), '../..') // In production, admin server runs from admin-interface/server
-  : path.join(__dirname, '../../../../'); // In development, use relative path
+// For admin API, files should be in the current working directory after build
+const KB_DIR = process.cwd();
 
 console.log('Knowledge Base Directory:', KB_DIR);
 console.log('Current working directory:', process.cwd());
+console.log('__dirname:', __dirname);
 
 const KB_FILES = {
   main: 'essen-chatbot-kb.md',

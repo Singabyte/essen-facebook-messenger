@@ -1,0 +1,23 @@
+name: essen-admin-api
+services:
+  - name: api
+    environment_slug: node-js
+    github:
+      branch: main
+      deploy_on_push: true
+      repo: your-repo-name
+    source_dir: admin-interface/server
+    build_command: npm install && npm run build
+    run_command: npm start
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: ${db.DATABASE_URL}
+      - key: JWT_SECRET
+        value: ${JWT_SECRET}
+      - key: NODE_TLS_REJECT_UNAUTHORIZED
+        value: "0"
+    http_port: 4000
+    instance_count: 1
+    instance_size_slug: basic-xxs
