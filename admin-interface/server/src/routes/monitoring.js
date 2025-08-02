@@ -6,6 +6,15 @@ const router = express.Router();
 const BOT_SERVICE_URL = process.env.BOT_SERVICE_URL || 'http://localhost:3000';
 console.log('Monitoring routes initialized with BOT_SERVICE_URL:', BOT_SERVICE_URL);
 
+// Test endpoint to verify proxy configuration
+router.get('/test', async (req, res) => {
+  res.json({
+    status: 'ok',
+    botServiceUrl: BOT_SERVICE_URL,
+    timestamp: new Date().toISOString()
+  });
+});
+
 /**
  * Proxy requests to bot monitoring endpoints
  * This allows the admin interface to access bot metrics safely
@@ -15,7 +24,12 @@ console.log('Monitoring routes initialized with BOT_SERVICE_URL:', BOT_SERVICE_U
 router.get('/health-comprehensive', async (req, res) => {
   try {
     const response = await axios.get(`${BOT_SERVICE_URL}/debug/health-comprehensive`, {
-      timeout: 10000
+      timeout: 10000,
+      headers: {
+        'Accept': 'application/json',
+        'X-Forwarded-For': req.ip,
+        'X-Correlation-Id': req.headers['x-correlation-id'] || require('crypto').randomUUID()
+      }
     });
     
     res.json(response.data);
@@ -64,12 +78,19 @@ router.get('/health-comprehensive', async (req, res) => {
 router.get('/system-stats', async (req, res) => {
   try {
     const response = await axios.get(`${BOT_SERVICE_URL}/debug/system-stats`, {
-      timeout: 5000
+      timeout: 5000,
+      headers: {
+        'Accept': 'application/json',
+        'X-Forwarded-For': req.ip,
+        'X-Correlation-Id': req.headers['x-correlation-id'] || require('crypto').randomUUID()
+      }
     });
     
     res.json(response.data);
   } catch (error) {
     console.error('Failed to fetch system stats:', error.message);
+    console.error('Bot service URL:', `${BOT_SERVICE_URL}/debug/system-stats`);
+    console.error('Error details:', error.response?.data || error.code);
     
     res.status(error.response?.status || 500).json({
       error: 'Cannot fetch system stats',
