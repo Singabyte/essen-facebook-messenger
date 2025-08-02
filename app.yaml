@@ -125,6 +125,9 @@ services:
     value: "true"
   - key: LOG_LEVEL
     value: "info"
+  # Bot service URL for monitoring proxy
+  - key: BOT_SERVICE_URL
+    value: "http://localhost:3000"
 
 # Admin UI Static Site
 static_sites:
