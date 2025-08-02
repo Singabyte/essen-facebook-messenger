@@ -280,6 +280,18 @@ const db = {
         appointmentTime,
         phoneNumber
       ]);
+      
+      // Emit Socket.io event to admin interface
+      adminEvents.newAppointment({
+        id: result.rows[0].id,
+        user_id: userId,
+        facebook_name: facebookName,
+        appointment_date: appointmentDate,
+        appointment_time: appointmentTime,
+        phone_number: phoneNumber,
+        timestamp: new Date().toISOString()
+      });
+      
       return result.rows[0].id;
     } catch (err) {
       console.error('Error saving appointment:', err);

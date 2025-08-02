@@ -1,8 +1,8 @@
 import React from 'react'
-import { Card, CardContent, Typography, Box, CircularProgress } from '@mui/material'
-import { TrendingUp, TrendingDown, TrendingFlat } from '@mui/icons-material'
+import { Card, CardContent, Typography, Box, CircularProgress, Chip } from '@mui/material'
+import { TrendingUp, TrendingDown, TrendingFlat, FiberManualRecord } from '@mui/icons-material'
 
-function StatCard({ title, value, previousValue, icon, loading, format = 'number' }) {
+function StatCard({ title, value, previousValue, icon, loading, format = 'number', realtime }) {
   const formatValue = (val) => {
     if (format === 'number') {
       return val?.toLocaleString() || '0'
@@ -35,9 +35,20 @@ function StatCard({ title, value, previousValue, icon, loading, format = 'number
       <CardContent>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
           <Box>
-            <Typography color="textSecondary" gutterBottom variant="body2">
-              {title}
-            </Typography>
+            <Box display="flex" alignItems="center" gap={1}>
+              <Typography color="textSecondary" gutterBottom variant="body2">
+                {title}
+              </Typography>
+              {realtime && (
+                <Chip
+                  icon={<FiberManualRecord sx={{ fontSize: 8 }} />}
+                  label="Live"
+                  size="small"
+                  color="success"
+                  sx={{ height: 18, fontSize: '0.7rem' }}
+                />
+              )}
+            </Box>
             {loading ? (
               <CircularProgress size={24} />
             ) : (

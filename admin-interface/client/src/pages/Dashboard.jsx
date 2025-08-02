@@ -23,16 +23,78 @@ import SystemStatusMonitor from '../components/SystemStatusMonitor'
 import { useAnalytics } from '../hooks/useAnalytics'
 import { conversationsAPI } from '../services/api'
 import { format } from 'date-fns'
+import { useWebSocket } from '../hooks/useWebSocket'
 
 function Dashboard() {
   const [conversationStats, setConversationStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
+  const [realtimeStats, setRealtimeStats] = useState({
+    activeUsers: 0,
+    todayConversations: 0,
+    totalAppointments: 0
+  })
   
   const { data: analytics, loading: analyticsLoading, refetch } = useAnalytics()
+  const { on, off } = useWebSocket(['dashboard'])
 
   useEffect(() => {
     fetchConversationStats()
   }, [])
+
+  useEffect(() => {
+    // Handle real-time updates
+    const handleStatsUpdate = (data) => {
+      setRealtimeStats(prev => ({
+        ...prev,
+        ...data
+      }))
+    }
+
+    const handleNewConversation = () => {
+      setRealtimeStats(prev => ({
+        ...prev,
+        todayConversations: prev.todayConversations + 1
+      }))
+    }
+
+    const handleNewUser = () => {
+      setRealtimeStats(prev => ({
+        ...prev,
+        activeUsers: prev.activeUsers + 1
+      }))
+    }
+
+    const handleNewAppointment = () => {
+      setRealtimeStats(prev => ({
+        ...prev,
+        totalAppointments: prev.totalAppointments + 1
+      }))
+    }
+
+    // Subscribe to events
+    on('stats:update', handleStatsUpdate)
+    on('conversation:new', handleNewConversation)
+    on('user:new', handleNewUser)
+    on('appointment:new', handleNewAppointment)
+
+    return () => {
+      off('stats:update', handleStatsUpdate)
+      off('conversation:new', handleNewConversation)
+      off('user:new', handleNewUser)
+      off('appointment:new', handleNewAppointment)
+    }
+  }, [on, off])
+
+  useEffect(() => {
+    // Initialize realtime stats from fetched data
+    if (analytics && conversationStats) {
+      setRealtimeStats({
+        activeUsers: analytics.overview?.activeUsers || 0,
+        todayConversations: conversationStats.todayConversations || 0,
+        totalAppointments: analytics.overview?.totalAppointments || 0
+      })
+    }
+  }, [analytics, conversationStats])
 
   const fetchConversationStats = async () => {
     try {
@@ -83,26 +145,29 @@ function Dashboard() {
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
               title="Active Users"
-              value={analytics?.overview?.activeUsers}
+              value={realtimeStats.activeUsers}
               previousValue={analytics?.overview?.totalUsers}
               icon={<TrendingUp />}
               loading={analyticsLoading}
+              realtime
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
               title="Today's Conversations"
-              value={conversationStats?.todayConversations}
+              value={realtimeStats.todayConversations}
               icon={<Chat />}
               loading={statsLoading}
+              realtime
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
               title="Total Appointments"
-              value={analytics?.overview?.totalAppointments}
+              value={realtimeStats.totalAppointments}
               icon={<EventNote />}
               loading={analyticsLoading}
+              realtime
             />
           </Grid>
 

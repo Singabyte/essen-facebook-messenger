@@ -76,19 +76,6 @@ const initializeWebSocket = (server) => {
         });
       }
     });
-    
-    // Handle bot events (from main bot without authentication)
-    socket.on('conversation:new', (data) => {
-      console.log('Bot event received: conversation:new');
-      emitToAdmins('conversation:new', data);
-      emitToRoom('conversations', 'conversation:new', data);
-    });
-    
-    socket.on('user:new', (data) => {
-      console.log('Bot event received: user:new');
-      emitToAdmins('user:new', data);
-      emitToRoom('users', 'user:new', data);
-    });
   });
 
   // Create a separate namespace for bot connections (no auth required)
@@ -121,7 +108,36 @@ const initializeWebSocket = (server) => {
     });
   });
 
+  // Start periodic stats updates
+  startPeriodicStatsUpdate();
+  
   return io;
+};
+
+// Periodic stats update function
+const startPeriodicStatsUpdate = () => {
+  setInterval(async () => {
+    try {
+      const queries = require('./db/queries');
+      
+      // Get current stats
+      const [activeUsers, todayConversations, totalAppointments] = await Promise.all([
+        queries.analytics.getActiveUsers(7), // Active in last 7 days
+        queries.conversations.getTodayCount(),
+        queries.analytics.getTotalAppointments()
+      ]);
+      
+      // Emit stats update to dashboard subscribers
+      emitToRoom('dashboard', 'stats:update', {
+        activeUsers: activeUsers.length,
+        todayConversations,
+        totalAppointments,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error updating stats:', error);
+    }
+  }, 30000); // Update every 30 seconds
 };
 
 // Emit events to admin clients
