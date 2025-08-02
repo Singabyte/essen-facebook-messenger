@@ -45,7 +45,7 @@ import {
   Timer as TimerIcon,
   Chat as ChatIcon,
 } from '@mui/icons-material';
-import { api } from '../services/api';
+import api from '../services/api';
 
 function BotConfiguration() {
   const [configs, setConfigs] = useState({});

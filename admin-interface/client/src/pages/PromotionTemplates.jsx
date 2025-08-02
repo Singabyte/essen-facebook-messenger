@@ -44,7 +44,7 @@ import {
   Image as ImageIcon,
   Code as CodeIcon,
 } from '@mui/icons-material';
-import { api } from '../services/api';
+import api from '../services/api';
 
 function TabPanel({ children, value, index, ...other }) {
   return (
