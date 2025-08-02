@@ -4,6 +4,7 @@ const router = express.Router();
 
 // Bot service URL - should be configurable
 const BOT_SERVICE_URL = process.env.BOT_SERVICE_URL || 'http://localhost:3000';
+console.log('Monitoring routes initialized with BOT_SERVICE_URL:', BOT_SERVICE_URL);
 
 /**
  * Proxy requests to bot monitoring endpoints
@@ -20,6 +21,8 @@ router.get('/health-comprehensive', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error('Failed to fetch comprehensive health:', error.message);
+    console.error('Bot service URL:', `${BOT_SERVICE_URL}/debug/health-comprehensive`);
+    console.error('Error details:', error.response?.data || error.code);
     
     // Return fallback data structure
     res.status(error.response?.status || 500).json({

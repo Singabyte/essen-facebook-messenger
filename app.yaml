@@ -127,7 +127,7 @@ services:
     value: "info"
   # Bot service URL for monitoring proxy
   - key: BOT_SERVICE_URL
-    value: "http://localhost:3000"
+    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
 
 # Admin UI Static Site
 static_sites:
