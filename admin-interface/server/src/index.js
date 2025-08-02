@@ -35,12 +35,54 @@ app.use('/', limiter);
 
 // Routes - Handle both /api/* and /* paths for DigitalOcean ingress
 // Health check
-app.get(['/health', '/api/health'], (req, res) => {
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Initialize admin user endpoint
-app.post(['/debug/init-admin', '/api/debug/init-admin'], async (req, res) => {
+app.post('/debug/init-admin', async (req, res) => {
+  const bcrypt = require('bcryptjs');
+  const queries = require('./db/queries');
+  
+  try {
+    const username = 'admin';
+    const password = 'hello123';
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Check if admin exists
+    const existingUser = await queries.admin.findByUsername(username);
+    
+    if (existingUser) {
+      return res.json({
+        success: false,
+        message: 'Admin user already exists',
+        username: username
+      });
+    }
+    
+    // Create admin user
+    await queries.admin.createUser(username, hashedPassword);
+    
+    return res.json({
+      success: true,
+      message: 'Admin user created successfully',
+      username: username,
+      password: password,
+      note: 'Please change the password after first login!'
+    });
+    
+  } catch (error) {
+    console.error('Init admin error:', error);
+    return res.json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+app.post('/api/debug/init-admin', async (req, res) => {
   const bcrypt = require('bcryptjs');
   const queries = require('./db/queries');
   
@@ -81,7 +123,20 @@ app.post(['/debug/init-admin', '/api/debug/init-admin'], async (req, res) => {
 });
 
 // Simple debug endpoint - no database
-app.get(['/debug/env', '/api/debug/env'], (req, res) => {
+app.get('/debug/env', (req, res) => {
+  const fs = require('fs');
+  const dbPath = process.env.DB_PATH || '/workspace/database/bot.db';
+  
+  res.json({
+    dbPath: dbPath,
+    dbExists: fs.existsSync(dbPath),
+    nodeEnv: process.env.NODE_ENV,
+    workDir: process.cwd(),
+    dbReadable: fs.existsSync(dbPath) ? fs.accessSync(dbPath, fs.constants.R_OK) === undefined : false,
+    dbWritable: fs.existsSync(dbPath) ? fs.accessSync(dbPath, fs.constants.W_OK) === undefined : false
+  });
+});
+app.get('/api/debug/env', (req, res) => {
   const fs = require('fs');
   const dbPath = process.env.DB_PATH || '/workspace/database/bot.db';
   
@@ -96,7 +151,50 @@ app.get(['/debug/env', '/api/debug/env'], (req, res) => {
 });
 
 // Test login endpoint for debugging
-app.post(['/debug/test-login', '/api/debug/test-login'], async (req, res) => {
+app.post('/debug/test-login', async (req, res) => {
+  const bcrypt = require('bcryptjs');
+  const queries = require('./db/queries');
+  
+  try {
+    // Test with hardcoded credentials
+    const username = 'admin';
+    const password = 'hello123';
+    
+    console.log('Test login attempt for:', username);
+    
+    // Find user
+    const user = await queries.admin.findByUsername(username);
+    console.log('User found:', !!user);
+    
+    if (!user) {
+      return res.json({ 
+        success: false, 
+        error: 'User not found',
+        message: 'Admin user does not exist in database'
+      });
+    }
+    
+    // Check password
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    console.log('Password valid:', isValidPassword);
+    
+    return res.json({
+      success: isValidPassword,
+      user: user ? { id: user.id, username: user.username } : null,
+      passwordMatch: isValidPassword,
+      hashedPasswordLength: user.password ? user.password.length : 0
+    });
+    
+  } catch (error) {
+    console.error('Test login error:', error);
+    return res.json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+app.post('/api/debug/test-login', async (req, res) => {
   const bcrypt = require('bcryptjs');
   const queries = require('./db/queries');
   
@@ -141,7 +239,36 @@ app.post(['/debug/test-login', '/api/debug/test-login'], async (req, res) => {
 });
 
 // Debug database connection
-app.get(['/debug/db', '/api/debug/db'], async (req, res) => {
+app.get('/debug/db', async (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const { getAdminUsers } = require('./db/queries').admin;
+  
+  const dbPath = process.env.DB_PATH 
+    ? process.env.DB_PATH
+    : path.resolve(__dirname, '../../../database/bot.db');
+  
+  let users = [];
+  let dbError = null;
+  
+  try {
+    users = await getAdminUsers();
+  } catch (err) {
+    dbError = err.message;
+  }
+  
+  res.json({
+    envDbPath: process.env.DB_PATH,
+    resolvedPath: dbPath,
+    exists: fs.existsSync(dbPath),
+    workingDir: process.cwd(),
+    dirname: __dirname,
+    adminUsers: users.length,
+    dbError: dbError,
+    dbStats: fs.existsSync(dbPath) ? fs.statSync(dbPath) : null
+  });
+});
+app.get('/api/debug/db', async (req, res) => {
   const path = require('path');
   const fs = require('fs');
   const { getAdminUsers } = require('./db/queries').admin;
@@ -172,14 +299,20 @@ app.get(['/debug/db', '/api/debug/db'], async (req, res) => {
 });
 
 // Auth routes
-app.use(['/auth', '/api/auth'], require('./routes/auth'));
+app.use('/auth', require('./routes/auth'));
+app.use('/api/auth', require('./routes/auth'));
 
 // Protected routes
-app.use(['/users', '/api/users'], require('./routes/users'));
-app.use(['/conversations', '/api/conversations'], require('./routes/conversations'));
-app.use(['/appointments', '/api/appointments'], require('./routes/appointments'));
-app.use(['/analytics', '/api/analytics'], require('./routes/analytics'));
-app.use(['/knowledge-base', '/api/knowledge-base'], require('./routes/knowledge-base'));
+app.use('/users', require('./routes/users'));
+app.use('/api/users', require('./routes/users'));
+app.use('/conversations', require('./routes/conversations'));
+app.use('/api/conversations', require('./routes/conversations'));
+app.use('/appointments', require('./routes/appointments'));
+app.use('/api/appointments', require('./routes/appointments'));
+app.use('/analytics', require('./routes/analytics'));
+app.use('/api/analytics', require('./routes/analytics'));
+app.use('/knowledge-base', require('./routes/knowledge-base'));
+app.use('/api/knowledge-base', require('./routes/knowledge-base'));
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -208,7 +341,12 @@ const { initializeWebSocket } = require('./websocket');
 initializeWebSocket(server);
 
 // Socket.io debugging endpoints
-app.all(['/socket.io/*', '/api/socket.io/*'], (req, res, next) => {
+app.all('/socket.io/*', (req, res, next) => {
+  console.log(`Socket.io request: ${req.method} ${req.url}`);
+  console.log('Headers:', req.headers);
+  next();
+});
+app.all('/api/socket.io/*', (req, res, next) => {
   console.log(`Socket.io request: ${req.method} ${req.url}`);
   console.log('Headers:', req.headers);
   next();

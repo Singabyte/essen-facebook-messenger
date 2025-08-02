@@ -38,8 +38,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Webhook Handler** (`src/webhook.js`, `src/webhook-enhanced.js`): Handles Facebook webhook verification and message routing
 - **Message Handler** (`src/messageHandler.js`): Processes incoming messages, manages commands, generates responses
 - **Gemini Integration** (`src/geminiClient.js`): Integrates with Google's Gemini AI, loads ESSEN knowledge base
-- **Database** (`src/database.js`): SQLite database for conversations, users, preferences, and analytics
+- **Database** (`src/database.js`, `src/database-pg.js`): SQLite/PostgreSQL database for conversations, users, preferences, and analytics
 - **Facebook Integration** (`src/facebook-integration.js`): Facebook-specific features and API calls
+- **Admin Socket Client** (`src/admin-socket-client.js`): Socket.io client for real-time admin interface updates
 
 #### Admin Interface
 - **React Frontend** (`admin-interface/client`): Vite-based React app with Material-UI
@@ -72,6 +73,7 @@ Required in `.env`:
 - `GEMINI_API_KEY` - Google Gemini API key
 - `PORT` - Server port (default: 3000)
 - `DB_PATH` - SQLite database path
+- `DATABASE_URL` - PostgreSQL connection string (for production)
 
 Note: The Facebook error about `pages_manage_metadata` permission is normal - basic messaging functionality works without it.
 
@@ -79,6 +81,7 @@ Admin interface (`admin-interface/server/.env`):
 - `JWT_SECRET` - Secret for JWT tokens
 - `PORT` - Admin API port (default: 4000)
 - `DB_PATH` - Path to bot database
+- `DATABASE_URL` - PostgreSQL connection string
 
 ## Important Implementation Details
 
