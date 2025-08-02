@@ -8,8 +8,8 @@ const initializeWebSocket = (server) => {
   io = new Server(server, {
     cors: {
       origin: process.env.NODE_ENV === 'production' 
-        ? process.env.FRONTEND_URL 
-        : 'http://localhost:5173',
+        ? [process.env.FRONTEND_URL, process.env.APP_URL || 'https://essen-messenger-bot-zxxtw.ondigitalocean.app']
+        : ['http://localhost:5173', 'http://localhost:3000'],
       credentials: true
     },
     path: process.env.NODE_ENV === 'production' ? '/admin/socket.io/' : '/socket.io/'
@@ -59,6 +59,49 @@ const initializeWebSocket = (server) => {
           socket.leave(event);
         });
       }
+    });
+    
+    // Handle bot events (from main bot without authentication)
+    socket.on('conversation:new', (data) => {
+      console.log('Bot event received: conversation:new');
+      emitToAdmins('conversation:new', data);
+      emitToRoom('conversations', 'conversation:new', data);
+    });
+    
+    socket.on('user:new', (data) => {
+      console.log('Bot event received: user:new');
+      emitToAdmins('user:new', data);
+      emitToRoom('users', 'user:new', data);
+    });
+  });
+
+  // Create a separate namespace for bot connections (no auth required)
+  const botNamespace = io.of('/bot');
+  
+  botNamespace.on('connection', (socket) => {
+    console.log('Bot connected to admin server');
+    
+    // Handle bot events
+    socket.on('conversation:new', (data) => {
+      console.log('Bot event received: conversation:new');
+      emitToAdmins('conversation:new', data);
+      emitToRoom('conversations', 'conversation:new', data);
+    });
+    
+    socket.on('user:new', (data) => {
+      console.log('Bot event received: user:new');
+      emitToAdmins('user:new', data);
+      emitToRoom('users', 'user:new', data);
+    });
+    
+    socket.on('appointment:new', (data) => {
+      console.log('Bot event received: appointment:new');
+      emitToAdmins('appointment:new', data);
+      emitToRoom('appointments', 'appointment:new', data);
+    });
+    
+    socket.on('disconnect', () => {
+      console.log('Bot disconnected from admin server');
     });
   });
 

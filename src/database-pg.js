@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const fs = require('fs');
+const { adminEvents } = require('./admin-socket-client');
 
 // Enhanced PostgreSQL connection configuration for DigitalOcean
 const pool = new Pool({
@@ -166,6 +167,14 @@ const db = {
       `;
       const result = await pool.query(query, [userId, userData.name, userData.profile_pic]);
       console.log('User saved successfully:', result.rowCount, 'rows affected');
+      
+      // Emit Socket.io event to admin interface
+      adminEvents.newUser({
+        id: userId,
+        name: userData.name,
+        profile_pic: userData.profile_pic,
+        created_at: new Date().toISOString()
+      });
     } catch (err) {
       console.error('Error saving user:', err);
       console.error('Query params:', [userId, userData.name, userData.profile_pic]);
@@ -189,9 +198,24 @@ const db = {
       const query = `
         INSERT INTO conversations (user_id, message, response, timestamp)
         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+        RETURNING id, timestamp
       `;
       const result = await pool.query(query, [userId, message, response]);
       console.log('Conversation saved successfully:', result.rowCount, 'rows affected');
+      
+      // Get user info for the Socket.io event
+      const user = await db.getUser(userId);
+      
+      // Emit Socket.io event to admin interface
+      adminEvents.newConversation({
+        id: result.rows?.[0]?.id || Date.now(),
+        user_id: userId,
+        user_name: user?.name || 'Unknown User',
+        profile_pic: user?.profile_pic,
+        message: message,
+        response: response,
+        timestamp: new Date().toISOString()
+      });
     } catch (err) {
       console.error('Error saving conversation:', err);
       console.error('Query params:', [userId, message, response]);

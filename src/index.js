@@ -17,6 +17,10 @@ initDatabase();
 const { initializeFacebookFeatures } = require('./facebook-integration');
 initializeFacebookFeatures().catch(console.error);
 
+// Initialize admin Socket.io client
+const { initializeAdminSocket } = require('./admin-socket-client');
+initializeAdminSocket();
+
 // Custom middleware to capture raw body for webhook signature verification
 app.use((req, res, next) => {
   // Capture raw body for webhook POST requests

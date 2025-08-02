@@ -95,7 +95,7 @@ function LiveConversationFeed() {
               }}
             >
               <ListItemAvatar>
-                <Avatar>
+                <Avatar src={conv.profile_pic}>
                   <Person />
                 </Avatar>
               </ListItemAvatar>
