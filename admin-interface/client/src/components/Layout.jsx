@@ -30,6 +30,9 @@ import {
   Settings,
   Logout,
   Person,
+  Campaign,
+  Build,
+  HelpOutline,
 } from '@mui/icons-material'
 
 const drawerWidth = 240
@@ -40,6 +43,9 @@ const menuItems = [
   { text: 'Conversations', icon: <Chat />, path: '/conversations' },
   { text: 'Appointments', icon: <EventNote />, path: '/appointments' },
   { text: 'Knowledge Base', icon: <LibraryBooks />, path: '/knowledge-base' },
+  { text: 'Templates', icon: <Campaign />, path: '/templates' },
+  { text: 'Bot Configuration', icon: <Build />, path: '/bot-configuration' },
+  { text: 'FAQ Management', icon: <HelpOutline />, path: '/faqs' },
   { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
   { text: 'Settings', icon: <Settings />, path: '/settings' },
 ]

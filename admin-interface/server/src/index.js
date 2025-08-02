@@ -313,6 +313,12 @@ app.use('/analytics', require('./routes/analytics'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/knowledge-base', require('./routes/knowledge-base'));
 app.use('/api/knowledge-base', require('./routes/knowledge-base'));
+app.use('/templates', require('./routes/templates'));
+app.use('/api/templates', require('./routes/templates'));
+app.use('/bot-config', require('./routes/bot-config'));
+app.use('/api/bot-config', require('./routes/bot-config'));
+app.use('/faqs', require('./routes/faqs'));
+app.use('/api/faqs', require('./routes/faqs'));
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -327,7 +333,10 @@ app.get('/', (req, res) => {
       conversations: '/conversations',
       appointments: '/appointments',
       analytics: '/analytics',
-      knowledgeBase: '/knowledge-base'
+      knowledgeBase: '/knowledge-base',
+      templates: '/templates',
+      botConfig: '/bot-config',
+      faqs: '/faqs'
     }
   });
 });

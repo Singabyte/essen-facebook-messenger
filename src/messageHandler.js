@@ -16,6 +16,69 @@ const {
   generateQuickReplies,
   getProductInfo
 } = require('./geminiClient');
+const {
+  detectPromotionInquiry,
+  handlePromotionInquiry,
+  sendPromotionWithImage,
+  analyzePromotionUrgency,
+  getContextualFollowUp
+} = require('./promotionHandler');
+const {
+  handleFAQInquiry,
+  handleFAQQuickReply,
+  isFAQInquiry
+} = require('./faqHandler');
+const {
+  updateConversationState,
+  needsHumanIntervention,
+  initializeConversationTracking,
+  getConversationInsights
+} = require('./conversationTracker');
+const {
+  sendSplitMessages,
+  sendMessageWithTyping,
+  sendImageMessage,
+  sendGenericTemplate,
+  delay
+} = require('./facebook-integration');
+
+// Cache for bot configuration to reduce database calls
+let botConfigCache = {};
+let configCacheExpiry = 0;
+const CONFIG_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get bot configuration with caching
+ */
+async function getBotConfig(key = null) {
+  const now = Date.now();
+  
+  // Refresh cache if expired
+  if (now > configCacheExpiry) {
+    try {
+      const configs = await db.getBotConfig();
+      botConfigCache = {};
+      
+      configs.forEach(config => {
+        botConfigCache[config.key_name] = config.value;
+      });
+      
+      configCacheExpiry = now + CONFIG_CACHE_DURATION;
+    } catch (error) {
+      console.error('Error loading bot configuration:', error);
+    }
+  }
+  
+  return key ? botConfigCache[key] : botConfigCache;
+}
+
+/**
+ * Check if a feature is enabled via configuration
+ */
+async function isFeatureEnabled(featureName) {
+  const config = await getBotConfig(featureName);
+  return config === '1' || config === 'true';
+}
 
 const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 
@@ -69,7 +132,7 @@ async function callSendAPI(messageData) {
   }
 }
 
-// Send text message
+// Send text message with human-like timing
 async function sendTextMessage(recipientId, messageText) {
   const messageData = {
     recipient: {
@@ -80,7 +143,16 @@ async function sendTextMessage(recipientId, messageText) {
     }
   };
   
-  return callSendAPI(messageData);
+  return sendMessageWithTyping(recipientId, messageData);
+}
+
+// Send multiple messages with human-like intervals
+async function sendHumanLikeResponse(recipientId, messages) {
+  if (Array.isArray(messages)) {
+    return await sendSplitMessages(recipientId, messages, 5000);
+  } else {
+    return await sendTextMessage(recipientId, messages);
+  }
 }
 
 // Send typing indicator
@@ -169,7 +241,7 @@ async function getUserInfo(userId) {
 // Store appointment booking state
 const appointmentBookingState = new Map();
 
-// Handle incoming messages
+// Handle incoming messages with enhanced human-like features
 async function handleMessage(event) {
   const senderId = event.sender.id;
   const message = event.message;
@@ -185,44 +257,136 @@ async function handleMessage(event) {
     const userInfo = await getUserInfo(senderId);
     await saveUser(senderId, userInfo);
     
-    // Send typing indicator
-    await sendTypingIndicator(senderId, true);
+    // Initialize conversation tracking for new users
+    const existingUser = await getUser(senderId);
+    if (!existingUser || existingUser.first_interaction) {
+      initializeConversationTracking(senderId);
+    }
     
     let responseText = '';
+    let quickReplies = [];
+    let humanLikeMessages = [];
     
     if (message.text) {
-      // Handle text messages
-      responseText = await handleTextMessage(senderId, message.text);
+      // Check for human intervention needs first
+      const interventionCheck = needsHumanIntervention(senderId, message.text);
+      if (interventionCheck) {
+        await handleHumanIntervention(senderId, interventionCheck);
+        return;
+      }
+      
+      // Check for FAQ inquiries first (before promotions)
+      if (await isFeatureEnabled('faq_matching_enabled')) {
+        const faqResult = await handleFAQInquiry(senderId, message.text);
+        if (faqResult && faqResult.handled) {
+          // Update conversation state
+          updateConversationState(senderId, message.text, '[FAQ response]');
+          
+          // Save conversation
+          await saveConversation(senderId, message.text, `[FAQ handled: ${faqResult.response_type}]`);
+          
+          // Log FAQ analytics
+          await logAnalytics('faq_served', senderId, {
+            faq_id: faqResult.faq_id,
+            confidence: faqResult.confidence,
+            response_type: faqResult.response_type
+          });
+          
+          return;
+        }
+      }
+      
+      // Check for promotion inquiries
+      if (await isFeatureEnabled('template_matching_enabled')) {
+        const promotionCategory = await detectPromotionInquiry(message.text);
+        if (promotionCategory) {
+          const promotionResult = await handlePromotionInquiry(senderId, message.text, promotionCategory);
+          if (promotionResult && promotionResult.handled) {
+            // Update conversation state
+            updateConversationState(senderId, message.text, '[Promotion response]');
+            
+            // Save conversation
+            await saveConversation(senderId, message.text, `[Promotion handled: ${promotionResult.source}]`);
+            
+            // Log promotion analytics
+            await logAnalytics('promotion_served', senderId, {
+              category: promotionCategory,
+              template_id: promotionResult.template_id,
+              source: promotionResult.source
+            });
+            
+            // Send contextual quick replies after a delay (with dynamic timing)
+            const quickReplyDelay = await getBotConfig('promotion_delay_ms') || '8000';
+            setTimeout(async () => {
+              if (promotionResult.quick_replies && promotionResult.quick_replies.length > 0) {
+                await sendQuickReply(senderId, 'How else can I help you today?', promotionResult.quick_replies);
+              }
+            }, parseInt(quickReplyDelay));
+            return;
+          }
+        }
+      }
+      
+      // Get conversation insights for personalized responses
+      const conversationInsights = getConversationInsights(senderId);
+      
+      // Handle text messages normally with insights
+      responseText = await handleTextMessage(senderId, message.text, conversationInsights);
+      
+      // Analyze message for urgency and provide contextual follow-up (only if promotion matching is enabled)
+      if (await isFeatureEnabled('template_matching_enabled')) {
+        const promotionCategory = await detectPromotionInquiry(message.text);
+        if (promotionCategory) {
+          const urgency = analyzePromotionUrgency(message.text);
+          const contextualFollowUp = getContextualFollowUp(promotionCategory, urgency);
+          if (contextualFollowUp) {
+            humanLikeMessages = [responseText, contextualFollowUp];
+          }
+        }
+      }
+      
     } else if (message.attachments) {
-      // Handle attachments
-      responseText = await handleAttachments(message.attachments);
+      // Handle attachments with enhanced responses
+      const attachmentResponse = await handleAttachments(senderId, message.attachments);
+      if (Array.isArray(attachmentResponse)) {
+        humanLikeMessages = attachmentResponse;
+        responseText = attachmentResponse.join(' ');
+      } else {
+        responseText = attachmentResponse;
+      }
     } else if (message.quick_reply) {
       // Handle quick reply
       responseText = await handleQuickReply(senderId, message.quick_reply);
     }
     
-    // Send response
+    // Send response with human-like behavior
     if (responseText) {
-      // Check if we should add quick replies
-      const shouldAddQuickReplies = message.text && !message.quick_reply;
-      
-      if (shouldAddQuickReplies) {
-        const quickReplies = await generateQuickReplies(message.text, responseText);
-        await sendQuickReply(senderId, responseText, quickReplies);
+      if (humanLikeMessages.length > 0) {
+        // Send split messages for more natural conversation
+        await sendHumanLikeResponse(senderId, humanLikeMessages);
+        responseText = humanLikeMessages.join(' ');
       } else {
-        await sendTextMessage(senderId, responseText);
+        // Check if we should add quick replies (respecting bot configuration)
+        const quickRepliesEnabled = await isFeatureEnabled('quick_replies_enabled');
+        const shouldAddQuickReplies = quickRepliesEnabled && message.text && !message.quick_reply;
+        
+        if (shouldAddQuickReplies) {
+          quickReplies = await generateQuickReplies(message.text, responseText);
+          await sendQuickReply(senderId, responseText, quickReplies);
+        } else {
+          await sendTextMessage(senderId, responseText);
+        }
       }
+      
+      // Update conversation state for tracking
+      updateConversationState(senderId, message.text || '[attachment]', responseText);
       
       // Save conversation
       await saveConversation(senderId, message.text || '[attachment]', responseText);
     } else if (responseText === null) {
       // null indicates the message was already sent (e.g., button template)
-      // Save conversation with placeholder for button template
       await saveConversation(senderId, message.text || '[attachment]', '[Showroom info with buttons]');
     }
-    
-    // Turn off typing indicator
-    await sendTypingIndicator(senderId, false);
     
   } catch (error) {
     console.error('Error handling message:', error);
@@ -231,8 +395,48 @@ async function handleMessage(event) {
   }
 }
 
-// Handle text messages
-async function handleTextMessage(senderId, text) {
+// Handle human intervention requests (enhanced with configuration)
+async function handleHumanIntervention(senderId, interventionInfo) {
+  try {
+    // Send appropriate message to user
+    await sendTextMessage(senderId, interventionInfo.message);
+    
+    // Log intervention request
+    await logAnalytics('human_intervention_requested', senderId, {
+      reason: interventionInfo.reason,
+      urgency: interventionInfo.urgency
+    });
+    
+    // Get intervention threshold from configuration
+    const thresholdConfig = await getBotConfig('human_intervention_threshold');
+    const threshold = thresholdConfig ? parseInt(thresholdConfig) : 3;
+    
+    // If urgent, pass thread control immediately
+    if (interventionInfo.urgency === 'high') {
+      const { passThreadControl } = require('./facebook-integration');
+      await passThreadControl(senderId, '263902037430900', `Urgent: ${interventionInfo.reason}`);
+      
+      await delay(2000);
+      await sendTextMessage(senderId, 'I\'m connecting you with our customer service team right away. They\'ll be with you shortly!');
+    } else {
+      // For medium urgency, suggest showroom visit or callback
+      const quickReplies = [
+        'Call showroom now',
+        'Request callback',
+        'Continue with bot'
+      ];
+      
+      await delay(3000);
+      await sendQuickReply(senderId, 'Would you prefer to speak with someone directly?', quickReplies);
+    }
+    
+  } catch (error) {
+    console.error('Error handling human intervention:', error);
+  }
+}
+
+// Handle text messages with conversation insights
+async function handleTextMessage(senderId, text, conversationInsights = null) {
   // Check for special commands
   const command = text.toLowerCase().trim();
   
@@ -272,33 +476,102 @@ async function handleTextMessage(senderId, text) {
   // Get conversation history
   const history = await getConversationHistory(senderId, 5);
   
-  // Generate response using Gemini with ESSEN context
-  const response = await generateResponseWithHistory(text, history);
+  // Generate response using Gemini with ESSEN context and insights
+  const response = await generateResponseWithHistory(text, history, conversationInsights);
   
   return response;
 }
 
-// Handle attachments
-async function handleAttachments(attachments) {
+// Handle attachments with enhanced media responses
+async function handleAttachments(senderId, attachments) {
   const attachment = attachments[0];
   
   switch (attachment.type) {
     case 'image':
-      return 'Thanks for sharing the image! Currently I can only process text messages. But no worries - you can describe what you\'re looking for, or better yet, bring the image to our showroom where our design consultants can help you find the perfect match!';
+      // Send an encouraging response and offer to show similar products
+      const imageResponses = [
+        'Wah, nice image! I can see you have good taste! 😍',
+        'While I can\'t analyze images yet, I\'d love to help you find similar styles at our showroom.',
+        'Our design consultants are experts at matching styles - they can definitely help you find what you\'re looking for!'
+      ];
+      
+      // Schedule follow-up with product suggestions
+      setTimeout(async () => {
+        const followUpMessages = [
+          'By the way, what type of furniture are you looking for?',
+          'Sofa? Dining set? Or maybe kitchen/bathroom items?'
+        ];
+        await sendSplitMessages(senderId, followUpMessages, 4000);
+      }, 8000);
+      
+      return imageResponses;
+      
     case 'video':
-      return 'I received your video! For now, I can only handle text messages. Feel free to describe what you need, or visit our showroom for a more interactive experience!';
+      return [
+        'Thanks for the video! Very thoughtful of you to share! 🎥',
+        'I wish I could watch it, but our showroom consultants would love to see it and help you out!',
+        'You can bring your phone and show them directly - they\'re super helpful!'
+      ];
+      
     case 'audio':
-      return 'Got your audio message! I can only process text for now. Please type your question, or call our showroom directly for immediate assistance!';
+      return [
+        'I heard you sent an audio message! 🎵',
+        'Unfortunately I can only read text, but feel free to type your question or call our showroom at +65 6019 0775!'
+      ];
+      
     case 'file':
-      return 'Thanks for the file! I can only read text messages at the moment. If you have floor plans or design ideas, our showroom consultants would love to review them with you - free consultation somemore!';
+      return [
+        'Received your file! Thanks for sharing! 📄',
+        'If it\'s floor plans or design ideas, our consultants would be super excited to review them with you.',
+        'Free consultation some more - just bring the file when you visit!'
+      ];
+      
     default:
-      return 'I received your attachment! How else can I help you with your furniture needs today?';
+      return 'I received your attachment! What kind of furniture help can I provide today?';
   }
 }
 
-// Handle quick replies
+// Send product images based on category
+async function sendProductImages(senderId, category) {
+  // Sample product images (in production, these would be actual ESSEN product URLs)
+  const productImages = {
+    sofa: 'https://example.com/essen-sofa-collection.jpg',
+    dining: 'https://example.com/essen-dining-sets.jpg',
+    bedroom: 'https://example.com/essen-bedroom-furniture.jpg',
+    kitchen: 'https://example.com/essen-kitchen-solutions.jpg',
+    bathroom: 'https://example.com/essen-bathroom-sets.jpg'
+  };
+  
+  const imageUrl = productImages[category.toLowerCase()];
+  
+  if (imageUrl) {
+    await sendImageMessage(senderId, imageUrl, `Here are some of our ${category} options! 📸`);
+    
+    await delay(3000);
+    
+    const followUpMessages = [
+      'These are just some examples!',
+      'We have much more variety at our showroom - come see the actual quality and feel the materials!'
+    ];
+    
+    await sendSplitMessages(senderId, followUpMessages, 4000);
+    return true;
+  }
+  
+  return false;
+}
+
+// Handle quick replies (enhanced with FAQ support)
 async function handleQuickReply(senderId, quickReply) {
   const payload = quickReply.payload;
+  
+  // First check if it's an FAQ-related quick reply
+  if (payload.startsWith('FAQ_')) {
+    const handled = await handleFAQQuickReply(senderId, payload);
+    if (handled) {
+      return null; // FAQ handler already sent the response
+    }
+  }
   
   // Handle different quick reply payloads
   switch (payload) {
@@ -316,9 +589,65 @@ async function handleQuickReply(senderId, quickReply) {
     case 'Book consultation':
       appointmentBookingState.set(senderId, { stage: 'awaiting_details' });
       return "Great! When would you like to visit us? Just let me know your preferred date and time (we're open 11am-7pm daily).";
+    case 'Sofa collection':
+    case 'Dining sets':
+    case 'Kitchen solutions':
+    case 'Bathroom sets':
+      // Send product images for the requested category
+      const category = payload.split(' ')[0].toLowerCase(); // Extract category
+      await sendProductImages(senderId, category);
+      return null;
+    case 'WhatsApp for prices':
+    case 'WhatsApp deals':
+      return [
+        'Great idea! Our WhatsApp team can share the latest prices and deals! 📱',
+        'Just WhatsApp us at +65 6019 0775 and mention you came from our chatbot!',
+        'They\'ll take good care of you and share all current promotions!'
+      ];
+    case 'Call showroom now':
+      // Provide immediate call option
+      await sendButtonTemplate(senderId, 'Ready to call our showroom?', [{
+        type: 'phone_number',
+        title: 'Call Now 📞',
+        payload: '+6560190775'
+      }]);
+      return null;
+    case 'Request callback':
+      return [
+        'Sure! Our team will call you back! 📞',
+        'Please WhatsApp your preferred callback time to +65 6019 0775',
+        'Or you can also leave your number and best time to call in your next message!'
+      ];
+    case 'Continue with bot':
+      return 'No problem! I\'m here to help. What would you like to know about our furniture, kitchen, or bathroom solutions?';
     default:
+      // Check if it's a template-related payload
+      if (payload.startsWith('TEMPLATE_')) {
+        const templateId = payload.replace('TEMPLATE_', '');
+        try {
+          const { getTemplateById } = require('./promotionHandler');
+          const template = await getTemplateById(templateId);
+          if (template) {
+            // Process and send template
+            const userContext = await db.getUser(senderId);
+            const { processTemplateContent } = require('./promotionHandler');
+            const processed = processTemplateContent(template, { user_name: userContext?.name || 'Customer' });
+            
+            const messages = processed.content.split('\n').filter(msg => msg.trim());
+            await sendSplitMessages(senderId, messages, 3000);
+            
+            // Log template usage
+            await db.logTemplateUsage(templateId, senderId, `Quick reply: ${payload}`);
+            
+            return null;
+          }
+        } catch (error) {
+          console.error('Error handling template quick reply:', error);
+        }
+      }
+      
       // Treat as regular text message
-      return await handleTextMessage(senderId, payload);
+      return await handleTextMessage(senderId, payload, getConversationInsights(senderId));
   }
 }
 
@@ -649,6 +978,11 @@ Free consultation for your furniture needs!`;
 module.exports = {
   handleMessage,
   handlePostback,
+  sendHumanLikeResponse,
+  handleHumanIntervention,
+  sendProductImages,
+  getBotConfig,
+  isFeatureEnabled,
   // Export for testing
   parseAppointmentDetails,
   isValidAppointmentTime

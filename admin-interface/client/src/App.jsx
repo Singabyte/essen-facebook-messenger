@@ -9,6 +9,9 @@ import Users from './pages/Users'
 import Conversations from './pages/Conversations'
 import Appointments from './pages/Appointments'
 import KnowledgeBase from './pages/KnowledgeBase'
+import PromotionTemplates from './pages/PromotionTemplates'
+import BotConfiguration from './pages/BotConfiguration'
+import FAQs from './pages/FAQs'
 import Settings from './pages/Settings'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -31,6 +34,9 @@ function App() {
                     <Route path="/conversations" element={<Conversations />} />
                     <Route path="/appointments" element={<Appointments />} />
                     <Route path="/knowledge-base" element={<KnowledgeBase />} />
+                    <Route path="/templates" element={<PromotionTemplates />} />
+                    <Route path="/bot-configuration" element={<BotConfiguration />} />
+                    <Route path="/faqs" element={<FAQs />} />
                     <Route path="/analytics" element={<div>Analytics</div>} />
                     <Route path="/settings" element={<Settings />} />
                   </Routes>

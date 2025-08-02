@@ -57,31 +57,40 @@ const safetySettings = [
   }
 ];
 
-// ESSEN-specific system prompt
-const SYSTEM_PROMPT = `You are the ESSEN Furniture Singapore customer service chatbot. Help customers with furniture, kitchen, and bathroom solutions.
+// ESSEN-specific system prompt with enhanced human-like conversation
+const SYSTEM_PROMPT = `You are the ESSEN Furniture Singapore customer service chatbot. You're helpful, friendly, and speak naturally like a Singaporean. Help customers with furniture, kitchen, and bathroom solutions.
 
-CRITICAL: Keep responses SHORT - maximum 2-3 sentences. Get to the point quickly.
+CONVERSATION STYLE:
+- Be conversational and natural (use "lah", "sia", "right?" occasionally)
+- Show genuine interest in helping customers
+- Keep responses SHORT - maximum 2-3 sentences per message
+- Sound enthusiastic about ESSEN products
+- Use Singapore English naturally but remain professional
 
 GUIDELINES:
 1. You represent ESSEN - "Your Essential Living Expert"
-2. Use Singapore English naturally
-3. Be warm and helpful
-4. Encourage showroom visits
-5. Mention free consultation when relevant
-6. We're the only retailer with furniture + kitchen + bathroom
-7. No specific pricing - direct to showroom
+2. Be warm, helpful, and proactive
+3. Encourage showroom visits naturally in conversation
+4. Mention free consultation when relevant
+5. We're Singapore's ONLY one-stop furniture + kitchen + bathroom retailer
+6. No specific pricing - always direct to showroom for best deals
+7. Create urgency when appropriate (limited stock, popular items)
+8. Acknowledge customer preferences and ask follow-up questions
 
 KEY INFO:
 - Founded: July 2024
-- Unique: One-stop furniture + kitchen + bathroom
+- Unique: Singapore's only one-stop furniture + kitchen + bathroom retailer
 - Free design consultation available
-- ONE showroom location: 36 Jalan Kilang Barat, Singapore 159366
+- ONE showroom location: 36 Jalan Kilang Barat, Singapore 598576
 - Open daily 11am-7pm
+- 5-star Google rating
 
-RESPONSE STYLE:
-- Maximum 2-3 sentences per response
-- Direct and helpful
-- Suggest next action (visit, consultation, product view)
+RESPONSE APPROACH:
+- Start with acknowledgment of their request
+- Provide helpful information
+- End with a natural next step or question
+- Use phrases like "Actually", "By the way", "You know what" to sound conversational
+- Show excitement about helping them transform their home
 
 KNOWLEDGE BASE:
 ${essenKnowledge}
@@ -89,48 +98,86 @@ ${essenKnowledge}
 SINGAPORE CONTEXT:
 ${singaporeExamples}`;
 
-// Generate response using Gemini
-async function generateResponse(prompt, context = '') {
+// Generate response using Gemini with enhanced conversation context
+async function generateResponse(prompt, context = '', conversationInsights = null) {
   try {
-    // Build the full prompt with context
+    // Build the full prompt with context and insights
     let fullPrompt = SYSTEM_PROMPT + '\n\n';
     
     if (context) {
       fullPrompt += `Previous conversation context:\n${context}\n\n`;
     }
     
+    // Add conversation insights for more personalized responses
+    if (conversationInsights) {
+      fullPrompt += `Conversation insights:\n`;
+      fullPrompt += `- Message count: ${conversationInsights.messageCount}\n`;
+      fullPrompt += `- Categories inquired: ${conversationInsights.categoriesInquired.join(', ')}\n`;
+      fullPrompt += `- User interests: ${conversationInsights.interests.join(', ')}\n`;
+      fullPrompt += `- Urgency level: ${conversationInsights.urgencyLevel}\n\n`;
+    }
+    
     fullPrompt += `Customer: ${prompt}\nESSEN Assistant:`;
+    
+    // Use slightly higher temperature for more natural responses
+    const enhancedConfig = {
+      ...generationConfig,
+      temperature: 0.8,
+      maxOutputTokens: 256 // Shorter responses for human-like feel
+    };
     
     // Generate content
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
-      generationConfig,
+      generationConfig: enhancedConfig,
       safetySettings,
     });
     
     const response = await result.response;
-    const text = response.text();
+    let text = response.text();
     
-    // Clean up the response
+    // Post-process response for more natural feel
+    text = enhanceResponseNaturalness(text);
+    
     return text.trim();
   } catch (error) {
     console.error('Gemini API error:', error);
     
-    // Handle specific errors
+    // Handle specific errors with more natural language
     if (error.message?.includes('API key')) {
-      return 'I apologize, but there seems to be a technical issue. Please contact our showroom directly for assistance.';
+      return 'Wah, I\'m having some technical difficulties. Better to call our showroom directly at +65 6019 0775!';
     } else if (error.message?.includes('quota')) {
-      return 'I apologize, but I\'m currently experiencing high demand. Please try again in a moment, or feel free to call our showroom!';
+      return 'Sorry lah, I\'m quite busy right now. Can try again in a bit, or just call our showroom for faster help!';
     } else if (error.message?.includes('safety')) {
-      return 'I apologize, but I cannot provide a response to that request. How else can I help you with your furniture needs?';
+      return 'Hmm, I can\'t help with that particular request. But I\'d love to help you with your furniture needs instead!';
     }
     
-    return 'I apologize for the inconvenience. Please try again, or visit our showroom for immediate assistance!';
+    return 'Aiyo, something went wrong on my end. Please try again, or better yet, visit our showroom for immediate assistance!';
   }
 }
 
-// Generate response with conversation history
-async function generateResponseWithHistory(prompt, conversationHistory) {
+// Enhance response to sound more natural and conversational
+function enhanceResponseNaturalness(text) {
+  // Remove overly formal language
+  text = text.replace(/I would be happy to/gi, 'I\'d love to');
+  text = text.replace(/I would recommend/gi, 'I\'d suggest');
+  text = text.replace(/Please feel free to/gi, 'Feel free to');
+  text = text.replace(/Thank you for/gi, 'Thanks for');
+  
+  // Add more conversational connectors
+  if (Math.random() > 0.7) {
+    const connectors = ['Actually', 'By the way', 'You know what'];
+    const randomConnector = connectors[Math.floor(Math.random() * connectors.length)];
+    if (!text.startsWith(randomConnector)) {
+      text = `${randomConnector}, ${text.charAt(0).toLowerCase() + text.slice(1)}`;
+    }
+  }
+  
+  return text;
+}
+
+// Generate response with conversation history and insights
+async function generateResponseWithHistory(prompt, conversationHistory, conversationInsights = null) {
   try {
     // Format conversation history
     let context = '';
@@ -142,11 +189,27 @@ async function generateResponseWithHistory(prompt, conversationHistory) {
         .join('\n\n');
     }
     
-    return await generateResponse(prompt, context);
+    return await generateResponse(prompt, context, conversationInsights);
   } catch (error) {
     console.error('Error generating response with history:', error);
     return await generateResponse(prompt); // Fallback to no context
   }
+}
+
+// Generate multiple response options for A/B testing or variety
+async function generateResponseVariations(prompt, context = '', count = 2) {
+  const variations = [];
+  
+  for (let i = 0; i < count; i++) {
+    try {
+      const response = await generateResponse(prompt, context);
+      variations.push(response);
+    } catch (error) {
+      console.error(`Error generating variation ${i + 1}:`, error);
+    }
+  }
+  
+  return variations;
 }
 
 // Generate contextual quick replies based on ESSEN context
@@ -225,6 +288,8 @@ function getProductInfo(category) {
 module.exports = {
   generateResponse,
   generateResponseWithHistory,
+  generateResponseVariations,
   generateQuickReplies,
-  getProductInfo
+  getProductInfo,
+  enhanceResponseNaturalness
 };

@@ -1,0 +1,447 @@
+{
+  "dashboard": {
+    "id": "essen-messenger-bot",
+    "title": "ESSEN Messenger Bot - Production Monitoring",
+    "tags": ["facebook-bot", "messenger", "essen", "production"],
+    "timezone": "Asia/Singapore",
+    "refresh": "30s",
+    "schemaVersion": 30,
+    "version": 1,
+    "panels": [
+      {
+        "id": 1,
+        "title": "Service Health Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"facebook-bot\"}",
+            "legendFormat": "Bot Status"
+          },
+          {
+            "expr": "up{job=\"admin-api\"}",
+            "legendFormat": "Admin API Status"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "text": "DOWN",
+                    "color": "red"
+                  },
+                  "1": {
+                    "text": "UP",
+                    "color": "green"
+                  }
+                },
+                "type": "value"
+              }
+            ],
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "green",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 4,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Response Time",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "http_request_duration_seconds{job=\"facebook-bot\"}",
+            "legendFormat": "Bot Response Time"
+          },
+          {
+            "expr": "http_request_duration_seconds{job=\"admin-api\"}",
+            "legendFormat": "Admin API Response Time"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 500
+                },
+                {
+                  "color": "red",
+                  "value": 2000
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes{job=\"facebook-bot\"}",
+            "legendFormat": "Bot Memory Usage"
+          },
+          {
+            "expr": "process_resident_memory_bytes{job=\"admin-api\"}",
+            "legendFormat": "Admin API Memory Usage"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 500000000
+                },
+                {
+                  "color": "red",
+                  "value": 700000000
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 4
+        }
+      },
+      {
+        "id": 4,
+        "title": "Socket.io Metrics",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "socketio_connected_clients",
+            "legendFormat": "Connected Clients"
+          },
+          {
+            "expr": "socketio_connection_status",
+            "legendFormat": "Connection Status"
+          },
+          {
+            "expr": "rate(socketio_messages_total[5m])",
+            "legendFormat": "Messages/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 50
+                },
+                {
+                  "color": "red",
+                  "value": 100
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 4,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 5,
+        "title": "Template Cache Performance",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "template_cache_hit_ratio",
+            "legendFormat": "Cache Hit Ratio"
+          },
+          {
+            "expr": "template_cache_size",
+            "legendFormat": "Cache Size"
+          },
+          {
+            "expr": "rate(template_cache_requests_total[5m])",
+            "legendFormat": "Requests/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.7
+                },
+                {
+                  "color": "green",
+                  "value": 0.8
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 12
+        }
+      },
+      {
+        "id": 6,
+        "title": "Human Intervention Metrics",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "human_intervention_pending_count",
+            "legendFormat": "Pending Interventions"
+          },
+          {
+            "expr": "human_intervention_avg_response_time",
+            "legendFormat": "Avg Response Time (ms)"
+          },
+          {
+            "expr": "human_intervention_total_today",
+            "legendFormat": "Total Today"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 3
+                },
+                {
+                  "color": "red",
+                  "value": 5
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 4,
+          "w": 12,
+          "x": 12,
+          "y": 12
+        }
+      },
+      {
+        "id": 7,
+        "title": "Message Processing Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(facebook_messages_received_total[5m])",
+            "legendFormat": "Messages Received/sec"
+          },
+          {
+            "expr": "rate(facebook_messages_sent_total[5m])",
+            "legendFormat": "Messages Sent/sec"
+          },
+          {
+            "expr": "rate(gemini_api_requests_total[5m])",
+            "legendFormat": "AI Requests/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        }
+      },
+      {
+        "id": 8,
+        "title": "Error Rates",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+            "legendFormat": "5xx Errors/sec"
+          },
+          {
+            "expr": "rate(facebook_webhook_errors_total[5m])",
+            "legendFormat": "Webhook Errors/sec"
+          },
+          {
+            "expr": "rate(gemini_api_errors_total[5m])",
+            "legendFormat": "AI API Errors/sec"
+          },
+          {
+            "expr": "rate(socketio_errors_total[5m])",
+            "legendFormat": "Socket.io Errors/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.1
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        }
+      },
+      {
+        "id": 9,
+        "title": "Database Performance",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "database_query_duration_seconds",
+            "legendFormat": "Query Duration"
+          },
+          {
+            "expr": "database_connections_active",
+            "legendFormat": "Active Connections"
+          },
+          {
+            "expr": "rate(database_queries_total[5m])",
+            "legendFormat": "Queries/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 500
+                },
+                {
+                  "color": "red",
+                  "value": 1000
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 24
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "prometheus",
+          "enable": true,
+          "expr": "deployment_timestamp",
+          "iconColor": "blue",
+          "tagKeys": "version,environment",
+          "textFormat": "Deployment: {{version}}",
+          "titleFormat": "Deployment"
+        }
+      ]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "environment",
+          "type": "custom",
+          "options": [
+            {
+              "text": "Production",
+              "value": "production",
+              "selected": true
+            },
+            {
+              "text": "Staging",
+              "value": "staging",
+              "selected": false
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

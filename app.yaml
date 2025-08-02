@@ -17,13 +17,30 @@ services:
     branch: main
     deploy_on_push: true
     repo: Singabyte/essen-facebook-messenger
-  build_command: npm install
+  build_command: npm install && npm run test:unit
   run_command: node src/index.js
   http_port: 3000
   instance_count: 1
-  instance_size_slug: basic-xxs
+  instance_size_slug: basic-xs
   routes:
   - path: /
+  # Auto-scaling configuration for handling increased load
+  autoscaling:
+    min_instance_count: 1
+    max_instance_count: 3
+    metrics:
+      cpu:
+        percent: 70
+      memory:
+        percent: 80
+  # Health check configuration
+  health_check:
+    http_path: /health
+    initial_delay_seconds: 30
+    period_seconds: 10
+    timeout_seconds: 5
+    success_threshold: 1
+    failure_threshold: 3
   envs:
   - key: NODE_ENV
     value: production
@@ -39,6 +56,28 @@ services:
     value: "${db.DATABASE_URL}"
   - key: PORT
     value: "3000"
+  # Socket.io configuration
+  - key: ADMIN_API_URL
+    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app/api"
+  - key: APP_URL
+    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
+  # Template caching configuration
+  - key: TEMPLATE_CACHE_TTL
+    value: "3600"
+  - key: TEMPLATE_CACHE_MAX_SIZE
+    value: "100"
+  # Human-like response configuration
+  - key: TYPING_DELAY_MIN
+    value: "1000"
+  - key: TYPING_DELAY_MAX
+    value: "5000"
+  - key: RESPONSE_DELAY_FACTOR
+    value: "1.2"
+  # Performance monitoring
+  - key: ENABLE_PERFORMANCE_METRICS
+    value: "true"
+  - key: LOG_LEVEL
+    value: "info"
 
 # Admin API Service
 - name: admin-api
@@ -52,14 +91,22 @@ services:
   run_command: node src/index.js
   http_port: 4000
   instance_count: 1
-  instance_size_slug: basic-xxs
+  instance_size_slug: basic-xs
   routes:
   - path: /api
+  # Health check for admin API
+  health_check:
+    http_path: /api/health
+    initial_delay_seconds: 30
+    period_seconds: 15
+    timeout_seconds: 5
+    success_threshold: 1
+    failure_threshold: 3
   envs:
   - key: NODE_ENV
     value: production
   - key: JWT_SECRET
-    value: "xVmE8Q7F+Rd3YKZPlm9cwXQ7RHLvW8Ij6N2BaMnKt1s="
+    type: SECRET
   - key: DATABASE_URL
     value: "${db.DATABASE_URL}"
   - key: PORT
@@ -68,6 +115,16 @@ services:
     value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
   - key: APP_URL
     value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
+  # Socket.io configuration for admin interface
+  - key: SOCKET_IO_CORS_ORIGIN
+    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
+  - key: SOCKET_IO_PATH
+    value: "/api/socket.io/"
+  # Monitoring configuration
+  - key: ENABLE_METRICS
+    value: "true"
+  - key: LOG_LEVEL
+    value: "info"
 
 # Admin UI Static Site
 static_sites:

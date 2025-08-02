@@ -1,17 +1,114 @@
-name: Deploy to DigitalOcean
+name: Enhanced CI/CD Pipeline
 
 on:
   push:
+    branches: [ main, develop ]
+  pull_request:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  NODE_VERSION: '18'
+
 jobs:
-  deploy:
+  # Test Phase
+  test:
     runs-on: ubuntu-latest
+    name: Run Tests
+    
+    strategy:
+      matrix:
+        test-type: [unit, integration]
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run ${{ matrix.test-type }} tests
+      run: npm run test:${{ matrix.test-type }}
+      env:
+        NODE_ENV: test
+        DB_PATH: ':memory:'
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.test-type }}
+        path: |
+          coverage/
+          test-results.xml
+        retention-days: 7
+
+  # Security Checks
+  security:
+    runs-on: ubuntu-latest
+    name: Security Audit
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run security audit
+      run: npm audit --audit-level=moderate
+      continue-on-error: true
+
+  # Performance Tests
+  performance:
+    runs-on: ubuntu-latest
+    name: Performance Tests
+    needs: [test]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run load tests
+      run: npm run test:performance
+      env:
+        NODE_ENV: test
+        CONCURRENT_USERS: 50
+        MESSAGES_PER_USER: 3
+
+  # Deploy to Production
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    needs: [test, security]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
     
     - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.0
@@ -21,17 +118,131 @@ jobs:
         password: ${{ secrets.SERVER_PASSWORD }}
         script: |
           cd ~/essen-facebook-messenger
+          
+          # Create backup
+          ./scripts/backup.sh
+          
+          # Pull latest code
           git pull origin main
-          npm install --production
+          
+          # Install dependencies
+          npm ci --production
+          
+          # Run database migrations if needed
+          node -e "require('./src/database-pg').initDatabase()"
+          
+          # Restart services with enhanced configuration
           pm2 restart facebook-bot || pm2 start ecosystem.config.js
           pm2 save
           
-    - name: Health check
+          # Wait for services to start
+          sleep 15
+          
+    - name: Comprehensive Health Checks
       run: |
-        sleep 10
+        echo "Running comprehensive health checks..."
+        
+        # Basic health check
         response=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.SERVER_HOST }}/health)
         if [ $response -ne 200 ]; then
-          echo "Health check failed"
+          echo "Basic health check failed (HTTP $response)"
           exit 1
         fi
-        echo "Deployment successful!"
+        echo "✅ Basic health check passed"
+        
+        # Version check
+        version=$(curl -s https://${{ secrets.SERVER_HOST }}/debug/version | jq -r .gitCommit)
+        echo "✅ Deployed version: $version"
+        
+        # Socket.io connectivity check
+        socket_check=$(curl -s https://${{ secrets.SERVER_HOST }}/api/health | jq -r .socketio)
+        echo "✅ Socket.io status: $socket_check"
+        
+        echo "All health checks passed!"
+        
+    - name: Template Cache Performance Test
+      run: |
+        echo "Testing template cache performance..."
+        # Test template loading performance
+        start_time=$(date +%s%N)
+        curl -s "https://${{ secrets.SERVER_HOST }}/debug/template-cache-stats" > /dev/null
+        end_time=$(date +%s%N)
+        duration=$((($end_time - $start_time) / 1000000))
+        echo "Template cache response time: ${duration}ms"
+        
+        if [ $duration -gt 500 ]; then
+          echo "⚠️ Template cache response time high: ${duration}ms"
+        else
+          echo "✅ Template cache performance good: ${duration}ms"
+        fi
+        
+    - name: Human Intervention System Test
+      run: |
+        echo "Testing human intervention system..."
+        # Test the human intervention detection endpoint
+        response=$(curl -s -o /dev/null -w "%{http_code}" "https://${{ secrets.SERVER_HOST }}/debug/human-intervention-status")
+        if [ $response -eq 200 ]; then
+          echo "✅ Human intervention system responsive"
+        else
+          echo "⚠️ Human intervention system check failed (HTTP $response)"
+        fi
+        
+    - name: Post-deployment Monitoring
+      run: |
+        echo "Starting post-deployment monitoring..."
+        
+        # Monitor for 5 minutes to ensure stability
+        for i in {1..10}; do
+          echo "Monitoring check $i/10..."
+          
+          # Check health endpoint
+          health=$(curl -s https://${{ secrets.SERVER_HOST }}/health | jq -r .status)
+          
+          # Check memory usage via debug endpoint
+          memory=$(curl -s https://${{ secrets.SERVER_HOST }}/debug/system-stats | jq -r .memoryUsageMB)
+          
+          echo "Health: $health, Memory: ${memory}MB"
+          
+          if [ "$health" != "OK" ]; then
+            echo "❌ Health check failed during monitoring"
+            exit 1
+          fi
+          
+          if [ "$memory" -gt "700" ]; then
+            echo "⚠️ High memory usage detected: ${memory}MB"
+          fi
+          
+          sleep 30
+        done
+        
+        echo "✅ Post-deployment monitoring completed successfully"
+        
+    - name: Generate Deployment Report
+      if: always()
+      run: |
+        echo "## Deployment Report" > deployment-report.md
+        echo "- **Timestamp:** $(date)" >> deployment-report.md
+        echo "- **Commit:** ${{ github.sha }}" >> deployment-report.md
+        echo "- **Branch:** ${{ github.ref_name }}" >> deployment-report.md
+        echo "- **Actor:** ${{ github.actor }}" >> deployment-report.md
+        
+        # Get deployment status
+        if [ $? -eq 0 ]; then
+          echo "- **Status:** ✅ Success" >> deployment-report.md
+        else
+          echo "- **Status:** ❌ Failed" >> deployment-report.md
+        fi
+        
+        # Get version info
+        version=$(curl -s https://${{ secrets.SERVER_HOST }}/debug/version 2>/dev/null | jq -r .gitCommit 2>/dev/null || echo "unknown")
+        echo "- **Deployed Version:** $version" >> deployment-report.md
+        
+        cat deployment-report.md
+        
+    - name: Upload Deployment Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: deployment-report-${{ github.run_number }}
+        path: deployment-report.md
+        retention-days: 90

@@ -163,6 +163,85 @@ function initAdminTables() {
       if (err) console.error('Error creating audit_logs table:', err);
       else console.log('Audit logs table ready');
     });
+    
+    // Promotion templates table
+    db.run(`CREATE TABLE IF NOT EXISTS promotion_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      category TEXT NOT NULL,
+      content TEXT NOT NULL,
+      quick_replies JSON,
+      media_url TEXT,
+      media_type TEXT,
+      variables JSON,
+      trigger_keywords JSON,
+      is_active BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+      if (err) console.error('Error creating promotion_templates table:', err);
+      else console.log('Promotion templates table ready');
+    });
+    
+    // Template usage tracking table
+    db.run(`CREATE TABLE IF NOT EXISTS template_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_id INTEGER,
+      user_id TEXT,
+      used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(template_id) REFERENCES promotion_templates(id),
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`, (err) => {
+      if (err) console.error('Error creating template_usage table:', err);
+      else console.log('Template usage table ready');
+    });
+    
+    // Bot configuration table
+    db.run(`CREATE TABLE IF NOT EXISTS bot_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key_name TEXT UNIQUE NOT NULL,
+      value TEXT,
+      default_value TEXT,
+      data_type TEXT DEFAULT 'string',
+      category TEXT DEFAULT 'general',
+      description TEXT,
+      is_public BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+      if (err) console.error('Error creating bot_config table:', err);
+      else console.log('Bot configuration table ready');
+    });
+    
+    // FAQs table
+    db.run(`CREATE TABLE IF NOT EXISTS faqs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      question TEXT NOT NULL,
+      answer TEXT NOT NULL,
+      category TEXT,
+      keywords JSON,
+      sort_order INTEGER DEFAULT 0,
+      is_active BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+      if (err) console.error('Error creating faqs table:', err);
+      else console.log('FAQs table ready');
+    });
+    
+    // FAQ usage tracking table
+    db.run(`CREATE TABLE IF NOT EXISTS faq_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      faq_id INTEGER,
+      user_id TEXT,
+      asked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(faq_id) REFERENCES faqs(id),
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    )`, (err) => {
+      if (err) console.error('Error creating faq_usage table:', err);
+      else console.log('FAQ usage table ready');
+    });
   });
 }
 

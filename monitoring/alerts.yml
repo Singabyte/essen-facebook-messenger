@@ -1,0 +1,267 @@
+# ESSEN Messenger Bot - Alert Rules Configuration
+# Compatible with Prometheus Alertmanager
+
+groups:
+  - name: essen-messenger-bot-critical
+    rules:
+      - alert: BotServiceDown
+        expr: up{job="facebook-bot"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: facebook-bot
+          environment: production
+        annotations:
+          summary: "Facebook Bot service is down"
+          description: "The Facebook Messenger bot has been down for more than 30 seconds"
+          runbook_url: "https://wiki.company.com/runbooks/facebook-bot-down"
+
+      - alert: AdminAPIDown
+        expr: up{job="admin-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: admin-api
+          environment: production
+        annotations:
+          summary: "Admin API service is down"
+          description: "The Admin API has been down for more than 1 minute"
+
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes{job="facebook-bot"} / 1024 / 1024) > 700
+        for: 2m
+        labels:
+          severity: critical
+          service: facebook-bot
+          environment: production
+        annotations:
+          summary: "High memory usage detected"
+          description: "Bot memory usage is {{ $value }}MB, exceeding 700MB threshold"
+
+      - alert: DatabaseConnectionFailure
+        expr: database_connections_active == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: database
+          environment: production
+        annotations:
+          summary: "Database connection failure"
+          description: "No active database connections detected"
+
+  - name: essen-messenger-bot-warning
+    rules:
+      - alert: HighResponseTime
+        expr: http_request_duration_seconds{job="facebook-bot"} > 2
+        for: 1m
+        labels:
+          severity: warning
+          service: facebook-bot
+          environment: production
+        annotations:
+          summary: "High response time detected"
+          description: "Bot response time is {{ $value }}s, exceeding 2s threshold"
+
+      - alert: SocketIOConnectionIssues
+        expr: socketio_connection_status != 1
+        for: 30s
+        labels:
+          severity: warning
+          service: socketio
+          environment: production
+        annotations:
+          summary: "Socket.io connection issues"
+          description: "Socket.io connection is not stable"
+
+      - alert: LowTemplateCacheHitRatio
+        expr: template_cache_hit_ratio < 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: template-cache
+          environment: production
+        annotations:
+          summary: "Low template cache hit ratio"
+          description: "Template cache hit ratio is {{ $value }}, below 80% threshold"
+
+      - alert: HighHumanInterventionRate
+        expr: human_intervention_pending_count > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: human-intervention
+          environment: production
+        annotations:
+          summary: "High number of pending human interventions"
+          description: "{{ $value }} human interventions are pending, indicating potential bot issues"
+
+      - alert: SlowDatabaseQueries
+        expr: database_query_duration_seconds > 1
+        for: 1m
+        labels:
+          severity: warning
+          service: database
+          environment: production
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Database query duration is {{ $value }}s, exceeding 1s threshold"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+          service: facebook-bot
+          environment: production
+        annotations:
+          summary: "High error rate detected"
+          description: "5xx error rate is {{ $value }} requests/sec"
+
+  - name: essen-messenger-bot-info
+    rules:
+      - alert: DeploymentCompleted
+        expr: increase(deployment_timestamp[1m]) > 0
+        for: 0s
+        labels:
+          severity: info
+          service: deployment
+          environment: production
+        annotations:
+          summary: "New deployment detected"
+          description: "A new deployment has been completed"
+
+      - alert: HighMessageVolume
+        expr: rate(facebook_messages_received_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: info
+          service: facebook-bot
+          environment: production
+        annotations:
+          summary: "High message volume detected"
+          description: "Receiving {{ $value }} messages/sec, which is higher than usual"
+
+      - alert: TemplateCacheEviction
+        expr: rate(template_cache_evictions_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: info
+          service: template-cache
+          environment: production
+        annotations:
+          summary: "Template cache evictions detected"
+          description: "Template cache is evicting {{ $value }} items/sec, consider increasing cache size"
+
+  - name: essen-messenger-bot-business
+    rules:
+      - alert: LowConversationEngagement
+        expr: rate(successful_conversations_total[1h]) / rate(facebook_messages_received_total[1h]) < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          service: business-metrics
+          environment: production
+        annotations:
+          summary: "Low conversation engagement rate"
+          description: "Conversation success rate is {{ $value }}, below 70% threshold"
+
+      - alert: HighAppointmentCancellationRate
+        expr: rate(appointments_cancelled_total[4h]) / rate(appointments_created_total[4h]) > 0.2
+        for: 15m
+        labels:
+          severity: warning
+          service: business-metrics
+          environment: production
+        annotations:
+          summary: "High appointment cancellation rate"
+          description: "Appointment cancellation rate is {{ $value }}, above 20% threshold"
+
+      - alert: NoMessagesReceived
+        expr: rate(facebook_messages_received_total[10m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          service: facebook-bot
+          environment: production
+        annotations:
+          summary: "No messages received for 10 minutes"
+          description: "Bot hasn't received any messages, check Facebook webhook connectivity"
+
+# Alertmanager routing configuration
+alertmanager_config:
+  global:
+    smtp_smarthost: 'localhost:587'
+    smtp_from: 'alerts@essen.com.sg'
+    slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+  
+  route:
+    group_by: ['alertname', 'service']
+    group_wait: 10s
+    group_interval: 10s
+    repeat_interval: 1h
+    receiver: 'web.hook'
+    routes:
+      - match:
+          severity: critical
+        receiver: 'critical-alerts'
+        group_wait: 5s
+        repeat_interval: 30m
+      - match:
+          severity: warning
+        receiver: 'warning-alerts'
+        repeat_interval: 2h
+      - match:
+          severity: info
+        receiver: 'info-alerts'
+        repeat_interval: 24h
+  
+  receivers:
+    - name: 'web.hook'
+      slack_configs:
+        - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+          channel: '#ops-alerts'
+          title: 'ESSEN Bot Alert'
+          text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+    
+    - name: 'critical-alerts'
+      email_configs:
+        - to: 'devops@essen.com.sg'
+          subject: '[CRITICAL] ESSEN Bot Alert: {{ .GroupLabels.alertname }}'
+          body: |
+            Alert: {{ .GroupLabels.alertname }}
+            Severity: {{ .CommonLabels.severity }}
+            Service: {{ .CommonLabels.service }}
+            Environment: {{ .CommonLabels.environment }}
+            
+            {{ range .Alerts }}
+            Description: {{ .Annotations.description }}
+            {{ end }}
+      slack_configs:
+        - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+          channel: '#critical-alerts'
+          title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+          text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+          color: 'danger'
+    
+    - name: 'warning-alerts'
+      slack_configs:
+        - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+          channel: '#ops-alerts'
+          title: '⚠️ WARNING: {{ .GroupLabels.alertname }}'
+          text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+          color: 'warning'
+    
+    - name: 'info-alerts'
+      slack_configs:
+        - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+          channel: '#bot-notifications'
+          title: 'ℹ️ INFO: {{ .GroupLabels.alertname }}'
+          text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+          color: 'good'
+
+  inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'service']

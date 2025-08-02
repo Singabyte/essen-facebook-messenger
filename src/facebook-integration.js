@@ -2,6 +2,140 @@ const axios = require('axios');
 
 const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 
+// Utility function to delay execution
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Simulate human typing speed (words per minute)
+function calculateTypingDelay(text) {
+  const wordsPerMinute = 60; // Average human typing speed
+  const words = text.split(' ').length;
+  const typingTimeMs = (words / wordsPerMinute) * 60 * 1000;
+  // Add some randomness and ensure minimum/maximum bounds
+  const randomFactor = 0.5 + Math.random(); // 0.5 to 1.5 multiplier
+  const delayMs = Math.max(1000, Math.min(5000, typingTimeMs * randomFactor));
+  return delayMs;
+}
+
+// Send typing indicator
+async function sendTypingIndicator(recipientId, isTyping = true) {
+  const messageData = {
+    recipient: {
+      id: recipientId
+    },
+    sender_action: isTyping ? 'typing_on' : 'typing_off'
+  };
+  
+  try {
+    await axios.post(
+      `${FACEBOOK_API_URL}/me/messages`,
+      messageData,
+      {
+        params: { access_token: process.env.PAGE_ACCESS_TOKEN }
+      }
+    );
+  } catch (error) {
+    console.error('Error sending typing indicator:', error.response?.data);
+  }
+}
+
+// Send message with human-like timing
+async function sendMessageWithTyping(recipientId, messageData) {
+  try {
+    // Start typing indicator
+    await sendTypingIndicator(recipientId, true);
+    
+    // Calculate typing delay based on message length
+    const typingDelay = calculateTypingDelay(messageData.message?.text || '');
+    await delay(typingDelay);
+    
+    // Send the actual message
+    const response = await axios.post(
+      `${FACEBOOK_API_URL}/me/messages`,
+      messageData,
+      {
+        params: { access_token: process.env.PAGE_ACCESS_TOKEN }
+      }
+    );
+    
+    // Stop typing indicator
+    await sendTypingIndicator(recipientId, false);
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error sending message with typing:', error.response?.data);
+    throw error;
+  }
+}
+
+// Send split messages with intervals (for human-like conversation)
+async function sendSplitMessages(recipientId, messages, intervalMs = 5000) {
+  const results = [];
+  
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i];
+    
+    // Prepare message data
+    const messageData = {
+      recipient: { id: recipientId },
+      message: typeof message === 'string' ? { text: message } : message
+    };
+    
+    // Send with typing simulation
+    const result = await sendMessageWithTyping(recipientId, messageData);
+    results.push(result);
+    
+    // Add interval between messages (except for the last one)
+    if (i < messages.length - 1) {
+      await delay(intervalMs);
+    }
+  }
+  
+  return results;
+}
+
+// Send image message
+async function sendImageMessage(recipientId, imageUrl, text = null) {
+  const messageData = {
+    recipient: { id: recipientId },
+    message: {
+      attachment: {
+        type: 'image',
+        payload: {
+          url: imageUrl,
+          is_reusable: true
+        }
+      }
+    }
+  };
+  
+  // Add text if provided
+  if (text) {
+    messageData.message.text = text;
+  }
+  
+  return await sendMessageWithTyping(recipientId, messageData);
+}
+
+// Send template message (generic template for product showcase)
+async function sendGenericTemplate(recipientId, elements) {
+  const messageData = {
+    recipient: { id: recipientId },
+    message: {
+      attachment: {
+        type: 'template',
+        payload: {
+          template_type: 'generic',
+          elements: elements
+        }
+      }
+    }
+  };
+  
+  return await sendMessageWithTyping(recipientId, messageData);
+}
+
 // Handle referral from m.me links or ads
 async function handleReferral(event) {
   const senderId = event.sender.id;
@@ -172,5 +306,13 @@ module.exports = {
   setGetStarted,
   passThreadControl,
   takeThreadControl,
-  initializeFacebookFeatures
+  initializeFacebookFeatures,
+  // New human-like messaging functions
+  sendTypingIndicator,
+  sendMessageWithTyping,
+  sendSplitMessages,
+  sendImageMessage,
+  sendGenericTemplate,
+  delay,
+  calculateTypingDelay
 };

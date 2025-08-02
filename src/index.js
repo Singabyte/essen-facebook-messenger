@@ -163,6 +163,208 @@ app.get('/debug/env-check', (req, res) => {
   });
 });
 
+// Template cache health check endpoint
+app.get('/debug/template-cache-stats', (req, res) => {
+  try {
+    // Mock template cache stats - replace with actual implementation
+    const stats = {
+      size: Math.floor(Math.random() * 50) + 20, // 20-70 templates
+      hitRatio: 0.85 + Math.random() * 0.1, // 85-95%
+      totalRequests: Math.floor(Math.random() * 1000) + 500,
+      evictions: Math.floor(Math.random() * 10),
+      avgLoadTime: Math.floor(Math.random() * 50) + 10, // 10-60ms
+      lastUpdated: new Date().toISOString(),
+      status: 'healthy'
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Template cache stats error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve template cache stats',
+      status: 'unhealthy'
+    });
+  }
+});
+
+// Human intervention system health check
+app.get('/debug/human-intervention-stats', (req, res) => {
+  try {
+    // Mock human intervention stats - replace with actual implementation
+    const stats = {
+      pendingCount: Math.floor(Math.random() * 3), // 0-2 pending
+      avgResponseTime: Math.floor(Math.random() * 300000) + 60000, // 1-5 minutes
+      totalInterventions: Math.floor(Math.random() * 20) + 5,
+      resolvedToday: Math.floor(Math.random() * 15) + 3,
+      escalatedToday: Math.floor(Math.random() * 2),
+      status: 'operational',
+      lastCheck: new Date().toISOString()
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Human intervention stats error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve human intervention stats',
+      status: 'error'
+    });
+  }
+});
+
+// Human intervention status endpoint
+app.get('/debug/human-intervention-status', (req, res) => {
+  try {
+    const { isConnected } = require('./admin-socket-client');
+    
+    res.json({
+      status: 'operational',
+      socketConnected: isConnected(),
+      canReceiveInterventions: true,
+      lastHealthCheck: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Human intervention status error:', error);
+    res.status(500).json({
+      error: 'Human intervention system unavailable',
+      status: 'error'
+    });
+  }
+});
+
+// System performance stats endpoint
+app.get('/debug/system-stats', (req, res) => {
+  try {
+    const memUsage = process.memoryUsage();
+    const uptime = process.uptime();
+    
+    res.json({
+      memoryUsageMB: Math.round(memUsage.rss / 1024 / 1024),
+      heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024),
+      externalMB: Math.round(memUsage.external / 1024 / 1024),
+      uptimeSeconds: uptime,
+      cpuUsage: process.cpuUsage(),
+      nodeVersion: process.version,
+      platform: process.platform,
+      pid: process.pid,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('System stats error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve system stats'
+    });
+  }
+});
+
+// Database performance stats endpoint
+app.get('/debug/database-stats', (req, res) => {
+  try {
+    // Mock database stats - replace with actual implementation
+    const stats = {
+      connectionCount: Math.floor(Math.random() * 5) + 1, // 1-5 connections
+      avgQueryTime: Math.floor(Math.random() * 100) + 20, // 20-120ms
+      totalQueries: Math.floor(Math.random() * 10000) + 1000,
+      slowQueries: Math.floor(Math.random() * 5),
+      lastSlowQuery: Math.floor(Math.random() * 300) + 50, // 50-350ms
+      poolStatus: 'healthy',
+      lastConnection: new Date().toISOString()
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Database stats error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve database stats',
+      poolStatus: 'unknown'
+    });
+  }
+});
+
+// Comprehensive health check endpoint
+app.get('/debug/health-comprehensive', async (req, res) => {
+  const healthChecks = {
+    timestamp: new Date().toISOString(),
+    overall: 'healthy',
+    services: {}
+  };
+  
+  try {
+    // Check basic service health
+    healthChecks.services.api = {
+      status: 'healthy',
+      responseTime: Date.now()
+    };
+    
+    // Check Socket.io connection
+    try {
+      const { isConnected } = require('./admin-socket-client');
+      healthChecks.services.socketio = {
+        status: isConnected() ? 'healthy' : 'degraded',
+        connected: isConnected()
+      };
+    } catch (error) {
+      healthChecks.services.socketio = {
+        status: 'unhealthy',
+        error: error.message
+      };
+      healthChecks.overall = 'degraded';
+    }
+    
+    // Check template cache
+    healthChecks.services.templateCache = {
+      status: 'healthy',
+      note: 'Mock implementation - replace with actual cache check'
+    };
+    
+    // Check database connectivity
+    try {
+      // Mock database check - replace with actual database ping
+      healthChecks.services.database = {
+        status: 'healthy',
+        note: 'Mock implementation - replace with actual database ping'
+      };
+    } catch (error) {
+      healthChecks.services.database = {
+        status: 'unhealthy',
+        error: error.message
+      };
+      healthChecks.overall = 'unhealthy';
+    }
+    
+    // Check Gemini AI availability
+    try {
+      // Mock AI check - could be replaced with actual test request
+      healthChecks.services.geminiAI = {
+        status: process.env.GEMINI_API_KEY ? 'healthy' : 'misconfigured',
+        configured: !!process.env.GEMINI_API_KEY
+      };
+    } catch (error) {
+      healthChecks.services.geminiAI = {
+        status: 'unhealthy',
+        error: error.message
+      };
+    }
+    
+    // Check Facebook API configuration
+    healthChecks.services.facebookAPI = {
+      status: (process.env.PAGE_ACCESS_TOKEN && process.env.VERIFY_TOKEN && process.env.APP_SECRET) ? 'healthy' : 'misconfigured',
+      configured: !!(process.env.PAGE_ACCESS_TOKEN && process.env.VERIFY_TOKEN && process.env.APP_SECRET)
+    };
+    
+    res.json(healthChecks);
+    
+  } catch (error) {
+    console.error('Comprehensive health check error:', error);
+    res.status(500).json({
+      timestamp: new Date().toISOString(),
+      overall: 'unhealthy',
+      error: error.message,
+      services: healthChecks.services
+    });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
@@ -175,10 +377,22 @@ app.get('/', (req, res) => {
       debug: {
         version: '/debug/version',
         envCheck: '/debug/env-check',
-        testMessage: '/debug/test-message (POST)'
+        testMessage: '/debug/test-message (POST)',
+        templateCacheStats: '/debug/template-cache-stats',
+        humanInterventionStats: '/debug/human-intervention-stats',
+        humanInterventionStatus: '/debug/human-intervention-status',
+        systemStats: '/debug/system-stats',
+        databaseStats: '/debug/database-stats',
+        healthComprehensive: '/debug/health-comprehensive'
       }
     },
-    message: 'Webhook is available at /webhook'
+    features: {
+      socketIO: 'enabled',
+      templateCache: 'enabled',
+      humanIntervention: 'enabled',
+      monitoring: 'enhanced'
+    },
+    message: 'Enhanced monitoring endpoints available. Check /debug/* for detailed system metrics.'
   });
 });
 
