@@ -76,7 +76,7 @@ const initializeWebSocket = (server) => {
   });
 
   // Create a separate namespace for bot connections (no auth required)
-  const botNamespace = io.of('/bot');
+  const botNamespace = io.of('/bot-connection');
   
   botNamespace.on('connection', (socket) => {
     console.log('Bot connected to admin server');

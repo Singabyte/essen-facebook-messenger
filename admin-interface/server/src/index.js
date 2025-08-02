@@ -341,12 +341,12 @@ const { initializeWebSocket } = require('./websocket');
 initializeWebSocket(server);
 
 // Socket.io debugging endpoints
-app.all('/socket.io/*', (req, res, next) => {
+app.all('/socket.io/:path(*)', (req, res, next) => {
   console.log(`Socket.io request: ${req.method} ${req.url}`);
   console.log('Headers:', req.headers);
   next();
 });
-app.all('/api/socket.io/*', (req, res, next) => {
+app.all('/api/socket.io/:path(*)', (req, res, next) => {
   console.log(`Socket.io request: ${req.method} ${req.url}`);
   console.log('Headers:', req.headers);
   next();

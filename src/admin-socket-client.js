@@ -20,9 +20,9 @@ const initializeAdminSocket = () => {
 
   console.log('Connecting to admin server:', socketUrl);
 
-  // Connect to the /bot namespace which doesn't require authentication
+  // Connect to the /bot-connection namespace which doesn't require authentication
   const socketPath = process.env.NODE_ENV === 'production' ? '/api/socket.io/' : '/socket.io/';
-  const fullSocketUrl = `${socketUrl}/bot`;
+  const fullSocketUrl = `${socketUrl}/bot-connection`;
   
   adminSocket = io(fullSocketUrl, {
     path: socketPath,
