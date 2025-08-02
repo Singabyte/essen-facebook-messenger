@@ -9,13 +9,11 @@ router.get('/', authMiddleware, async (req, res) => {
     const { page = 1, limit = 20, search } = req.query;
     const offset = (page - 1) * limit;
     
-    let result;
-    if (search) {
-      const users = await queries.users.search(search, limit);
-      result = { users, total: users.length };
-    } else {
-      result = await queries.users.getAll(limit, offset);
-    }
+    const result = await queries.users.getAll({
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      search: search || undefined
+    });
     
     res.json({ 
       ...result,

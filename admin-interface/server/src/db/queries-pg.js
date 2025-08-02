@@ -6,6 +6,8 @@ const queries = {
     getAll: async (filters = {}) => {
       const { limit = 20, offset = 0, search } = filters;
       
+      console.log('Users.getAll called with:', { limit, offset, search });
+      
       let query = `
         SELECT 
           u.id,
@@ -34,11 +36,15 @@ const queries = {
         : `SELECT COUNT(*) as total FROM users`;
       const countResult = await pool.query(countQuery, search ? [`%${search}%`] : []);
       
+      console.log('Total users found:', countResult.rows[0]?.total || 0);
+      
       // Get paginated results
       query += ` LIMIT $${++paramCount} OFFSET $${++paramCount}`;
       params.push(parseInt(limit), parseInt(offset));
       
       const result = await pool.query(query, params);
+      
+      console.log('Users returned:', result.rows.length);
       
       return {
         users: result.rows,
