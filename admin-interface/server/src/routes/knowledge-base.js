@@ -3,8 +3,14 @@ const router = express.Router();
 const fs = require('fs').promises;
 const path = require('path');
 
-// Use process.cwd() to ensure consistent path resolution
-const KB_DIR = process.cwd();
+// Use different path resolution based on environment
+const KB_DIR = process.env.NODE_ENV === 'production' 
+  ? path.join(process.cwd(), '../..') // In production, admin server runs from admin-interface/server
+  : path.join(__dirname, '../../../../'); // In development, use relative path
+
+console.log('Knowledge Base Directory:', KB_DIR);
+console.log('Current working directory:', process.cwd());
+
 const KB_FILES = {
   main: 'essen-chatbot-kb.md',
   examples: 'essen-chatbot-sg-examples.md'
@@ -13,13 +19,33 @@ const KB_FILES = {
 // Get knowledge base files
 router.get('/files', async (req, res) => {
   try {
-    const files = Object.entries(KB_FILES).map(([key, filename]) => ({
-      id: key,
-      name: filename,
-      path: path.join(KB_DIR, filename)
-    }));
+    // Check if files exist
+    const files = [];
+    for (const [key, filename] of Object.entries(KB_FILES)) {
+      const filePath = path.join(KB_DIR, filename);
+      try {
+        await fs.access(filePath);
+        files.push({
+          id: key,
+          name: filename,
+          path: filePath,
+          exists: true
+        });
+      } catch {
+        console.error(`File not found: ${filePath}`);
+        files.push({
+          id: key,
+          name: filename,
+          path: filePath,
+          exists: false
+        });
+      }
+    }
+    
+    console.log('Knowledge base files:', files);
     res.json({ files });
   } catch (error) {
+    console.error('Error in /files endpoint:', error);
     res.status(500).json({ message: 'Error fetching files', error: error.message });
   }
 });
@@ -35,6 +61,21 @@ router.get('/files/:id', async (req, res) => {
     }
     
     const filePath = path.join(KB_DIR, filename);
+    console.log(`Attempting to read file: ${filePath}`);
+    
+    // Check if file exists first
+    try {
+      await fs.access(filePath);
+    } catch {
+      console.error(`File not found: ${filePath}`);
+      console.error('Directory contents:', await fs.readdir(KB_DIR));
+      return res.status(404).json({ 
+        message: 'File not found', 
+        path: filePath,
+        directory: KB_DIR 
+      });
+    }
+    
     const content = await fs.readFile(filePath, 'utf-8');
     
     res.json({
