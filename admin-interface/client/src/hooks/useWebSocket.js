@@ -2,7 +2,8 @@ import { useEffect, useRef, useCallback } from 'react'
 import io from 'socket.io-client'
 import { useAuth } from '../context/AuthContext'
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000'
+// For production, we need to use the admin API URL, not the main bot URL
+const SOCKET_URL = import.meta.env.VITE_ADMIN_API_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000'
 const isProduction = import.meta.env.VITE_API_URL?.includes('ondigitalocean.app')
 
 export const useWebSocket = (events = []) => {

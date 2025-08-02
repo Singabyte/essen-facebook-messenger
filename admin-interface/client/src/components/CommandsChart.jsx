@@ -12,8 +12,8 @@ import {
 
 function CommandsChart({ data, loading }) {
   const formattedData = data?.map(item => ({
-    command: item.message.replace('/', ''),
-    count: item.count,
+    command: item.command || item.message || 'Unknown',
+    count: item.count || 0,
   })) || []
 
   return (

@@ -1,10 +1,1 @@
-# Notification Sound File
-
-This is a placeholder for the notification.mp3 file.
-
-To add a real notification sound:
-1. Replace this file with an actual MP3 audio file
-2. Name it notification.mp3
-3. Place it in the admin-interface/client/public/ directory
-
-The sound will be played when new messages arrive in the admin interface.
+Placeholder notification sound file
