@@ -66,6 +66,8 @@ services:
     value: "4000"
   - key: FRONTEND_URL
     value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
+  - key: APP_URL
+    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
 
 # Admin UI Static Site
 static_sites:

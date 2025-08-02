@@ -5,15 +5,25 @@ const queries = require('./db/queries');
 let io;
 
 const initializeWebSocket = (server) => {
+  // Configure Socket.io with proper path handling
+  const socketPath = process.env.NODE_ENV === 'production' ? '/api/socket.io/' : '/socket.io/';
+  
   io = new Server(server, {
     cors: {
       origin: process.env.NODE_ENV === 'production' 
-        ? [process.env.FRONTEND_URL, process.env.APP_URL || 'https://essen-messenger-bot-zxxtw.ondigitalocean.app']
+        ? ['https://essen-messenger-bot-zxxtw.ondigitalocean.app', 'https://*.ondigitalocean.app']
         : ['http://localhost:5173', 'http://localhost:3000'],
-      credentials: true
+      credentials: true,
+      methods: ['GET', 'POST']
     },
-    path: process.env.NODE_ENV === 'production' ? '/api/socket.io/' : '/socket.io/'
+    path: socketPath,
+    // Allow Socket.io to serve its client files
+    serveClient: true,
+    // Add trailing slash handling
+    addTrailingSlash: true
   });
+  
+  console.log(`Socket.io initialized with path: ${socketPath}`);
 
   // Authentication middleware
   io.use(async (socket, next) => {

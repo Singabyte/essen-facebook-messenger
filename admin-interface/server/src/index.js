@@ -338,9 +338,10 @@ const server = http.createServer(app);
 
 // Initialize WebSocket - must be done before error handling middleware
 const { initializeWebSocket } = require('./websocket');
-initializeWebSocket(server);
+const io = initializeWebSocket(server);
 
-// Socket.io debugging endpoints - removed as Socket.io handles its own routing
+// IMPORTANT: Socket.io handles its own routing, no need for manual route handling
+// The path configuration in websocket.js handles the /api/socket.io/ prefix
 
 // Error handling middleware - MUST come after Socket.io initialization
 app.use((err, req, res, next) => {
@@ -356,4 +357,5 @@ server.listen(PORT, () => {
   console.log(`Admin API server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV}`);
   console.log('Routes configured for both /api/* and /* paths');
+  console.log(`Socket.io configured with path: ${process.env.NODE_ENV === 'production' ? '/api/socket.io/' : '/socket.io/'}`);
 });
