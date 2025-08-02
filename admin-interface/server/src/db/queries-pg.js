@@ -392,51 +392,56 @@ const queries = {
     },
 
     getDatabaseStats: async () => {
-      const [
-        tableStatsResult,
-        indexStatsResult,
-        connectionStatsResult
-      ] = await Promise.all([
-        pool.query(`
-          SELECT 
-            schemaname,
-            tablename,
-            n_tup_ins as inserts,
-            n_tup_upd as updates,
-            n_tup_del as deletes,
-            n_live_tup as live_tuples,
-            n_dead_tup as dead_tuples
-          FROM pg_stat_user_tables
-          WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
-          ORDER BY n_live_tup DESC
-          LIMIT 20
-        `),
-        pool.query(`
-          SELECT 
-            schemaname,
-            tablename,
-            indexname,
-            idx_tup_read as reads,
-            idx_tup_fetch as fetches
-          FROM pg_stat_user_indexes
-          ORDER BY idx_tup_read DESC
-          LIMIT 10
-        `),
-        pool.query(`
+      try {
+        // Try to get basic connection stats first
+        const connectionStatsResult = await pool.query(`
           SELECT 
             count(*) as total_connections,
             count(*) FILTER (WHERE state = 'active') as active_connections,
             count(*) FILTER (WHERE state = 'idle') as idle_connections
           FROM pg_stat_activity
           WHERE datname = current_database()
-        `)
-      ]);
+        `);
 
-      return {
-        tables: tableStatsResult.rows,
-        indexes: indexStatsResult.rows,
-        connections: connectionStatsResult.rows[0] || {}
-      };
+        // For table and index stats, use simpler queries that work on managed databases
+        let tableStats = [];
+        let indexStats = [];
+        
+        try {
+          // Try to get table stats with a more compatible query
+          const tableStatsResult = await pool.query(`
+            SELECT 
+              t.schemaname,
+              t.tablename,
+              pg_size_pretty(pg_total_relation_size(t.schemaname||'.'||t.tablename)) as size
+            FROM pg_tables t
+            WHERE t.schemaname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+            ORDER BY pg_total_relation_size(t.schemaname||'.'||t.tablename) DESC
+            LIMIT 10
+          `);
+          tableStats = tableStatsResult.rows;
+        } catch (error) {
+          console.error('Could not fetch table stats:', error.message);
+        }
+
+        return {
+          tables: tableStats,
+          indexes: indexStats,
+          connections: connectionStatsResult.rows[0] || {}
+        };
+      } catch (error) {
+        console.error('Error fetching database stats:', error.message);
+        // Return empty structure on error
+        return {
+          tables: [],
+          indexes: [],
+          connections: {
+            total_connections: 0,
+            active_connections: 0,
+            idle_connections: 0
+          }
+        };
+      }
     }
   }
 };
