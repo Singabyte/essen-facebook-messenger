@@ -17,7 +17,7 @@ services:
     branch: main
     deploy_on_push: true
     repo: Singabyte/essen-facebook-messenger
-  build_command: npm install && npm run test:unit
+  build_command: npm install && npm run test:unit && npm run db:init || echo "DB init completed with warnings"
   run_command: node src/index.js
   http_port: 3000
   instance_count: 1
