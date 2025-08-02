@@ -31,9 +31,8 @@ import {
   Speed,
   Memory,
   Storage,
-  Api,
-  Socket,
-  Cache,
+  Cloud,
+  Cached,
   People,
   Timeline,
   Security,
@@ -221,7 +220,7 @@ const TemplateCacheMetrics = ({ cacheStats }) => {
     <Card>
       <CardHeader 
         title="Template Cache"
-        avatar={<Avatar><Cache /></Avatar>}
+        avatar={<Avatar><Cached /></Avatar>}
       />
       <CardContent>
         <Grid container spacing={2}>
