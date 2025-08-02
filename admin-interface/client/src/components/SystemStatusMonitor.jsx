@@ -72,7 +72,7 @@ function SystemStatusMonitor() {
   const fetchSystemHealth = async () => {
     try {
       // Try to fetch from bot's health endpoint via proxy
-      const response = await fetch('/api/bot-proxy/debug/health-comprehensive')
+      const response = await fetch('/api/monitoring/health-comprehensive')
       if (!response.ok) {
         throw new Error('Failed to fetch health data')
       }
@@ -97,7 +97,7 @@ function SystemStatusMonitor() {
 
   const fetchPerformanceMetrics = async () => {
     try {
-      const response = await fetch('/api/bot-proxy/debug/system-stats')
+      const response = await fetch('/api/monitoring/system-stats')
       if (!response.ok) {
         throw new Error('Failed to fetch performance data')
       }
