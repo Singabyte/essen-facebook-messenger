@@ -3,7 +3,8 @@ const router = express.Router();
 const fs = require('fs').promises;
 const path = require('path');
 
-const KB_DIR = path.join(__dirname, '../../../../');
+// Use process.cwd() to ensure consistent path resolution
+const KB_DIR = process.cwd();
 const KB_FILES = {
   main: 'essen-chatbot-kb.md',
   examples: 'essen-chatbot-sg-examples.md'

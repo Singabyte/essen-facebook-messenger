@@ -11,10 +11,22 @@ let essenKnowledge = '';
 let singaporeExamples = '';
 
 try {
-  essenKnowledge = fs.readFileSync(path.join(__dirname, '../essen-chatbot-kb.md'), 'utf8');
-  singaporeExamples = fs.readFileSync(path.join(__dirname, '../essen-chatbot-sg-examples.md'), 'utf8');
+  // Use process.cwd() to ensure we're reading from the correct directory
+  const rootDir = process.cwd();
+  const kbPath = path.join(rootDir, 'essen-chatbot-kb.md');
+  const sgPath = path.join(rootDir, 'essen-chatbot-sg-examples.md');
+  
+  console.log('Loading knowledge base from:', kbPath);
+  console.log('Loading Singapore examples from:', sgPath);
+  
+  essenKnowledge = fs.readFileSync(kbPath, 'utf8');
+  singaporeExamples = fs.readFileSync(sgPath, 'utf8');
+  
+  console.log('Knowledge base loaded successfully');
 } catch (error) {
   console.error('Error loading knowledge base:', error);
+  console.error('Current working directory:', process.cwd());
+  console.error('Directory contents:', fs.readdirSync(process.cwd()));
 }
 
 // Configuration for the chat
