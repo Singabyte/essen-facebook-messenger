@@ -22,6 +22,11 @@ const pool = new Pool({
   application_name: 'essen-facebook-bot'
 });
 
+// Add error handler for pool
+pool.on('error', (err, client) => {
+  console.error('Unexpected error on idle client', err);
+});
+
 async function initDatabase() {
   try {
     // Test connection first
@@ -150,6 +155,7 @@ const db = {
   // User operations
   saveUser: async (userId, userData) => {
     try {
+      console.log('Saving user:', { userId, userData });
       const query = `
         INSERT INTO users (id, name, profile_pic, last_interaction)
         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
@@ -158,9 +164,11 @@ const db = {
           profile_pic = EXCLUDED.profile_pic,
           last_interaction = CURRENT_TIMESTAMP
       `;
-      await pool.query(query, [userId, userData.name, userData.profile_pic]);
+      const result = await pool.query(query, [userId, userData.name, userData.profile_pic]);
+      console.log('User saved successfully:', result.rowCount, 'rows affected');
     } catch (err) {
       console.error('Error saving user:', err);
+      console.error('Query params:', [userId, userData.name, userData.profile_pic]);
     }
   },
 
@@ -177,13 +185,16 @@ const db = {
   // Conversation operations
   saveConversation: async (userId, message, response) => {
     try {
+      console.log('Saving conversation:', { userId, message: message?.substring(0, 50), response: response?.substring(0, 50) });
       const query = `
         INSERT INTO conversations (user_id, message, response, timestamp)
         VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
       `;
-      await pool.query(query, [userId, message, response]);
+      const result = await pool.query(query, [userId, message, response]);
+      console.log('Conversation saved successfully:', result.rowCount, 'rows affected');
     } catch (err) {
       console.error('Error saving conversation:', err);
+      console.error('Query params:', [userId, message, response]);
     }
   },
 
