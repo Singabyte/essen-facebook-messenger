@@ -3,15 +3,25 @@ const axios = require('axios');
 const router = express.Router();
 
 // Bot service URL - should be configurable
-const BOT_SERVICE_URL = process.env.BOT_SERVICE_URL || 'http://localhost:3000';
+// In DigitalOcean App Platform, services can communicate via their service names
+const BOT_SERVICE_URL = process.env.BOT_SERVICE_URL || 
+                       process.env.APP_URL || // Try using the main app URL
+                       'https://essen-messenger-bot-zxxtw.ondigitalocean.app'; // Fallback to known URL
 console.log('Monitoring routes initialized with BOT_SERVICE_URL:', BOT_SERVICE_URL);
+console.log('Environment check - BOT_SERVICE_URL env:', process.env.BOT_SERVICE_URL);
+console.log('Environment check - APP_URL env:', process.env.APP_URL);
 
 // Test endpoint to verify proxy configuration
 router.get('/test', async (req, res) => {
   res.json({
     status: 'ok',
     botServiceUrl: BOT_SERVICE_URL,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    env: {
+      BOT_SERVICE_URL: process.env.BOT_SERVICE_URL,
+      APP_URL: process.env.APP_URL,
+      NODE_ENV: process.env.NODE_ENV
+    }
   });
 });
 
