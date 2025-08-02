@@ -12,7 +12,7 @@ const initializeWebSocket = (server) => {
         : ['http://localhost:5173', 'http://localhost:3000'],
       credentials: true
     },
-    path: process.env.NODE_ENV === 'production' ? '/admin/socket.io/' : '/socket.io/'
+    path: '/socket.io/'
   });
 
   // Authentication middleware

@@ -8,9 +8,9 @@ const SOCKET_URL = (() => {
   const isProduction = apiUrl.includes('ondigitalocean.app')
   
   if (isProduction) {
-    // In production with App Platform, socket.io connects to the admin API component
-    // Remove /api suffix and use the base URL with /admin path
-    return apiUrl.replace('/api', '/admin')
+    // In production with App Platform, use the same base URL
+    // Socket.io will connect through the same API endpoint
+    return apiUrl.replace('/api', '')
   } else {
     // In development, connect directly to the admin server
     return 'http://localhost:4000'
@@ -31,7 +31,7 @@ export const useWebSocket = (events = []) => {
       auth: {
         token: token
       },
-      path: isProduction ? '/admin/socket.io/' : '/socket.io/',
+      path: '/socket.io/',
       transports: isProduction ? ['polling', 'websocket'] : ['websocket', 'polling'],
       timeout: 10000,
       forceNew: true,

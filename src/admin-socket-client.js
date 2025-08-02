@@ -13,15 +13,15 @@ const initializeAdminSocket = () => {
     return;
   }
 
-  // In production with App Platform, use the same base URL with /admin path
+  // In production with App Platform, use the base URL for admin API
   const socketUrl = process.env.NODE_ENV === 'production' 
-    ? `${process.env.APP_URL || 'https://essen-messenger-bot-zxxtw.ondigitalocean.app'}/admin`
+    ? process.env.APP_URL || 'https://essen-messenger-bot-zxxtw.ondigitalocean.app'
     : adminUrl;
 
   console.log('Connecting to admin server:', socketUrl);
 
   // Connect to the /bot namespace which doesn't require authentication
-  const socketPath = process.env.NODE_ENV === 'production' ? '/admin/socket.io/' : '/socket.io/';
+  const socketPath = '/socket.io/';
   const fullSocketUrl = `${socketUrl}/bot`;
   
   adminSocket = io(fullSocketUrl, {
