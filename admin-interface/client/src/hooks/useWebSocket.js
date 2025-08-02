@@ -2,8 +2,20 @@ import { useEffect, useRef, useCallback } from 'react'
 import io from 'socket.io-client'
 import { useAuth } from '../context/AuthContext'
 
-// For production, we need to use the admin API URL, not the main bot URL
-const SOCKET_URL = import.meta.env.VITE_ADMIN_API_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000'
+// Socket URL configuration for DigitalOcean App Platform
+const SOCKET_URL = (() => {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+  const isProduction = apiUrl.includes('ondigitalocean.app')
+  
+  if (isProduction) {
+    // In production with App Platform, socket.io connects to the admin API component
+    // Remove /api suffix and use the base URL with /admin path
+    return apiUrl.replace('/api', '/admin')
+  } else {
+    // In development, connect directly to the admin server
+    return 'http://localhost:4000'
+  }
+})()
 const isProduction = import.meta.env.VITE_API_URL?.includes('ondigitalocean.app')
 
 export const useWebSocket = (events = []) => {
@@ -19,6 +31,7 @@ export const useWebSocket = (events = []) => {
       auth: {
         token: token
       },
+      path: isProduction ? '/admin/socket.io/' : '/socket.io/',
       transports: isProduction ? ['polling', 'websocket'] : ['websocket', 'polling'],
       timeout: 10000,
       forceNew: true,

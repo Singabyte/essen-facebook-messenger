@@ -11,7 +11,8 @@ const initializeWebSocket = (server) => {
         ? process.env.FRONTEND_URL 
         : 'http://localhost:5173',
       credentials: true
-    }
+    },
+    path: process.env.NODE_ENV === 'production' ? '/admin/socket.io/' : '/socket.io/'
   });
 
   // Authentication middleware
