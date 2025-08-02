@@ -8,9 +8,12 @@ const queries = {
       
       let query = `
         SELECT 
-          u.*,
-          COUNT(DISTINCT c.id) as conversation_count,
-          MAX(c.timestamp) as last_interaction
+          u.id,
+          u.name,
+          u.profile_pic,
+          u.created_at,
+          u.last_interaction,
+          COUNT(DISTINCT c.id) as conversation_count
         FROM users u
         LEFT JOIN conversations c ON u.id = c.user_id
       `;
@@ -23,7 +26,7 @@ const queries = {
         query += ` WHERE u.name ILIKE $${++paramCount}`;
       }
       
-      query += ` GROUP BY u.id ORDER BY last_interaction DESC NULLS LAST`;
+      query += ` GROUP BY u.id, u.name, u.profile_pic, u.created_at, u.last_interaction ORDER BY u.last_interaction DESC NULLS LAST`;
       
       // Get total count
       const countQuery = search 
