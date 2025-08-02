@@ -3,6 +3,19 @@ const jwt = require('jsonwebtoken');
 const queries = require('./db/queries');
 
 let io;
+const activeUsersToday = new Set(); // Track active users for today
+const todayConversationCount = { count: 0, date: new Date().toDateString() };
+
+// Reset daily counters at midnight
+const resetDailyCounters = () => {
+  const now = new Date();
+  if (now.toDateString() !== todayConversationCount.date) {
+    activeUsersToday.clear();
+    todayConversationCount.count = 0;
+    todayConversationCount.date = now.toDateString();
+    console.log('Daily counters reset for new day:', now.toDateString());
+  }
+};
 
 const initializeWebSocket = (server) => {
   // Configure Socket.io with proper path handling
@@ -87,8 +100,26 @@ const initializeWebSocket = (server) => {
     // Handle bot events
     socket.on('conversation:new', (data) => {
       console.log('Bot event received: conversation:new');
+      resetDailyCounters(); // Check if it's a new day
+      
+      // Track active user
+      const wasNewUser = !activeUsersToday.has(data.user_id);
+      activeUsersToday.add(data.user_id);
+      
+      // Increment today's conversation count
+      todayConversationCount.count++;
+      
+      // Emit events
       emitToAdmins('conversation:new', data);
       emitToRoom('conversations', 'conversation:new', data);
+      
+      // If this user wasn't already active today, update the active user count
+      if (wasNewUser) {
+        emitToRoom('dashboard', 'stats:update', {
+          activeUsers: activeUsersToday.size,
+          todayConversations: todayConversationCount.count
+        });
+      }
     });
     
     socket.on('user:new', (data) => {
@@ -116,21 +147,37 @@ const initializeWebSocket = (server) => {
 
 // Periodic stats update function
 const startPeriodicStatsUpdate = () => {
-  setInterval(async () => {
+  // Initialize counters from database on startup
+  const initializeCounters = async () => {
     try {
       const queries = require('./db/queries');
+      const todayUsers = await queries.analytics.getTodayActiveUsers();
+      const todayConvCount = await queries.conversations.getTodayCount();
       
-      // Get current stats
-      const [activeUsers, todayConversations, totalAppointments] = await Promise.all([
-        queries.analytics.getActiveUsers(7), // Active in last 7 days
-        queries.conversations.getTodayCount(),
-        queries.analytics.getTotalAppointments()
-      ]);
+      // Initialize sets and counters
+      todayUsers.forEach(user => activeUsersToday.add(user.user_id));
+      todayConversationCount.count = todayConvCount;
+      
+      console.log(`Initialized counters - Active users: ${activeUsersToday.size}, Today's conversations: ${todayConversationCount.count}`);
+    } catch (error) {
+      console.error('Error initializing counters:', error);
+    }
+  };
+  
+  initializeCounters();
+  
+  // Send periodic updates
+  setInterval(async () => {
+    try {
+      resetDailyCounters(); // Check if it's a new day
+      
+      const queries = require('./db/queries');
+      const totalAppointments = await queries.analytics.getTotalAppointments();
       
       // Emit stats update to dashboard subscribers
       emitToRoom('dashboard', 'stats:update', {
-        activeUsers: activeUsers.length,
-        todayConversations,
+        activeUsers: activeUsersToday.size,
+        todayConversations: todayConversationCount.count,
         totalAppointments,
         timestamp: new Date().toISOString()
       });

@@ -50,38 +50,12 @@ function Dashboard() {
       }))
     }
 
-    const handleNewConversation = () => {
-      setRealtimeStats(prev => ({
-        ...prev,
-        todayConversations: prev.todayConversations + 1
-      }))
-    }
-
-    const handleNewUser = () => {
-      setRealtimeStats(prev => ({
-        ...prev,
-        activeUsers: prev.activeUsers + 1
-      }))
-    }
-
-    const handleNewAppointment = () => {
-      setRealtimeStats(prev => ({
-        ...prev,
-        totalAppointments: prev.totalAppointments + 1
-      }))
-    }
-
-    // Subscribe to events
+    // Only listen to stats:update events from server
+    // The server handles all counting logic to avoid duplicates
     on('stats:update', handleStatsUpdate)
-    on('conversation:new', handleNewConversation)
-    on('user:new', handleNewUser)
-    on('appointment:new', handleNewAppointment)
 
     return () => {
       off('stats:update', handleStatsUpdate)
-      off('conversation:new', handleNewConversation)
-      off('user:new', handleNewUser)
-      off('appointment:new', handleNewAppointment)
     }
   }, [on, off])
 

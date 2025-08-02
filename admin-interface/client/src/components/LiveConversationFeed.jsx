@@ -31,7 +31,15 @@ function LiveConversationFeed() {
 
   useEffect(() => {
     const handleNewConversation = (data) => {
-      setConversations(prev => [data, ...prev].slice(0, 10)) // Keep last 10
+      setConversations(prev => {
+        // Check if conversation with same ID already exists
+        const exists = prev.some(conv => conv.id === data.id)
+        if (exists) {
+          console.log('Duplicate conversation detected, ignoring:', data.id)
+          return prev
+        }
+        return [data, ...prev].slice(0, 10) // Keep last 10
+      })
       setNewCount(prev => prev + 1)
       
       if (soundEnabled) {
