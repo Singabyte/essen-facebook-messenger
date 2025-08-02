@@ -340,17 +340,7 @@ const server = http.createServer(app);
 const { initializeWebSocket } = require('./websocket');
 initializeWebSocket(server);
 
-// Socket.io debugging endpoints
-app.all('/socket.io/:path(*)', (req, res, next) => {
-  console.log(`Socket.io request: ${req.method} ${req.url}`);
-  console.log('Headers:', req.headers);
-  next();
-});
-app.all('/api/socket.io/:path(*)', (req, res, next) => {
-  console.log(`Socket.io request: ${req.method} ${req.url}`);
-  console.log('Headers:', req.headers);
-  next();
-});
+// Socket.io debugging endpoints - removed as Socket.io handles its own routing
 
 // Error handling middleware - MUST come after Socket.io initialization
 app.use((err, req, res, next) => {
