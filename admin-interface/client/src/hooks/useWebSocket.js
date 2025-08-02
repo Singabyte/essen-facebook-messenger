@@ -56,7 +56,9 @@ export const useWebSocket = (events = []) => {
     socket.on('connect_error', (error) => {
       console.error('WebSocket connection error:', error.message)
       console.error('Socket URL:', SOCKET_URL)
+      console.error('Socket path:', isProduction ? '/api/socket.io/' : '/socket.io/')
       console.error('Is production:', isProduction)
+      console.error('Full error:', error)
     })
 
     socket.on('error', (error) => {

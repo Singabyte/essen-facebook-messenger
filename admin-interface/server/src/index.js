@@ -199,7 +199,22 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling middleware
+// Create HTTP server BEFORE adding error handling middleware
+const http = require('http');
+const server = http.createServer(app);
+
+// Initialize WebSocket - must be done before error handling middleware
+const { initializeWebSocket } = require('./websocket');
+initializeWebSocket(server);
+
+// Socket.io debugging endpoints
+app.all(['/socket.io/*', '/api/socket.io/*'], (req, res, next) => {
+  console.log(`Socket.io request: ${req.method} ${req.url}`);
+  console.log('Headers:', req.headers);
+  next();
+});
+
+// Error handling middleware - MUST come after Socket.io initialization
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
@@ -207,14 +222,6 @@ app.use((err, req, res, next) => {
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
-
-// Create HTTP server
-const http = require('http');
-const server = http.createServer(app);
-
-// Initialize WebSocket
-const { initializeWebSocket } = require('./websocket');
-initializeWebSocket(server);
 
 // Start server
 server.listen(PORT, () => {
