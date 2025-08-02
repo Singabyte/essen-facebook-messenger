@@ -207,13 +207,45 @@ const queries = {
     },
 
     getUserEngagement: async (limit = 50) => {
-      const result = await pool.query('SELECT * FROM v_user_engagement LIMIT $1', [limit]);
-      return result.rows;
+      try {
+        const result = await pool.query('SELECT * FROM analytics.v_user_engagement_summary LIMIT $1', [limit]);
+        return result.rows;
+      } catch (error) {
+        console.error('User engagement view not found, using fallback query');
+        // Fallback to basic query if view doesn't exist
+        const result = await pool.query(`
+          SELECT 
+            'All Users' as customer_segment,
+            COUNT(*) as user_count,
+            0 as avg_conversations,
+            0 as avg_messages,
+            0 as avg_appointments,
+            0 as avg_engagement_score
+          FROM users
+        `);
+        return result.rows;
+      }
     },
 
     getConversionFunnel: async () => {
-      const result = await pool.query('SELECT * FROM v_conversion_funnel');
-      return result.rows[0] || {};
+      try {
+        const result = await pool.query('SELECT * FROM analytics.v_conversion_funnel');
+        return result.rows[0] || {};
+      } catch (error) {
+        console.error('Conversion funnel view not found, returning default data');
+        // Return default structure if view doesn't exist
+        return {
+          total_users: 0,
+          engaged_users: 0,
+          product_inquiry_users: 0,
+          appointment_users: 0,
+          confirmed_appointment_users: 0,
+          engagement_rate: 0,
+          inquiry_rate: 0,
+          appointment_rate: 0,
+          confirmation_rate: 0
+        };
+      }
     },
 
     getProductTrends: async (days = 30) => {
@@ -350,8 +382,13 @@ const queries = {
     },
 
     getSlowQueries: async (limit = 20) => {
-      const result = await pool.query('SELECT * FROM v_slow_queries LIMIT $1', [limit]);
-      return result.rows;
+      try {
+        const result = await pool.query('SELECT * FROM analytics.v_slow_queries LIMIT $1', [limit]);
+        return result.rows;
+      } catch (error) {
+        console.error('Slow queries view not found, returning empty array');
+        return [];
+      }
     },
 
     getDatabaseStats: async () => {
@@ -370,7 +407,9 @@ const queries = {
             n_live_tup as live_tuples,
             n_dead_tup as dead_tuples
           FROM pg_stat_user_tables
+          WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
           ORDER BY n_live_tup DESC
+          LIMIT 20
         `),
         pool.query(`
           SELECT 
