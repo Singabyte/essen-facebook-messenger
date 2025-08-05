@@ -6,6 +6,7 @@ const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 
 // In-memory cache for deduplication
 const recentMessages = new Map(); // Map of senderId -> { messageText, timestamp }
+const processedMessageIds = new Set(); // Set of processed message IDs
 const DEDUP_WINDOW_MS = 5000; // 5 second window
 
 // Utility function for delays
@@ -102,10 +103,29 @@ function parseMultiMessageResponse(response) {
 async function handleMessage(event) {
   const senderId = event.sender.id;
   const messageText = event.message?.text;
+  const messageId = event.message?.mid;
   
   if (!messageText) {
     console.log('No text message to process');
     return;
+  }
+  
+  // Check if we've already processed this message ID
+  if (messageId && processedMessageIds.has(messageId)) {
+    console.log(`Message ${messageId} already processed, skipping`);
+    return;
+  }
+  
+  // Add message ID to processed set
+  if (messageId) {
+    processedMessageIds.add(messageId);
+    // Clean up old message IDs if set gets too large
+    if (processedMessageIds.size > 1000) {
+      // Keep only the last 500 message IDs
+      const idsArray = Array.from(processedMessageIds);
+      processedMessageIds.clear();
+      idsArray.slice(-500).forEach(id => processedMessageIds.add(id));
+    }
   }
   
   // Check for duplicate messages

@@ -31,6 +31,8 @@ function handleWebhookVerification(req, res) {
 async function handleWebhookMessage(req, res) {
   const body = req.body;
   
+  console.log(`[${new Date().toISOString()}] Webhook received:`, JSON.stringify(body, null, 2));
+  
   // Verify webhook signature
   if (!verifyWebhookSignature(req)) {
     console.error('Invalid webhook signature');
@@ -40,8 +42,11 @@ async function handleWebhookMessage(req, res) {
   if (body.object === 'page') {
     // Process each entry
     for (const entry of body.entry) {
-      const webhookEvent = entry.messaging[0];
-      const senderId = webhookEvent.sender.id;
+      console.log(`Processing entry with ${entry.messaging.length} messaging events`);
+      
+      // Process ALL messaging events, not just the first one
+      for (const webhookEvent of entry.messaging) {
+        const senderId = webhookEvent.sender.id;
       
       // Check if message is from Page itself (echo)
       if (webhookEvent.sender.id === webhookEvent.recipient.id) {
@@ -72,6 +77,7 @@ async function handleWebhookMessage(req, res) {
           response: handlerError.response?.data
         });
         // Continue processing - don't let handler errors break the webhook response
+      }
       }
     }
     
