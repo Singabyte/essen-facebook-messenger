@@ -4,7 +4,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
 // Load ESSEN knowledge base - COMMENTED OUT FOR NOW
 // let essenKnowledge = '';
@@ -105,6 +105,8 @@ Example: "great news! vanity set promo is $498||WAIT:2000||are you renovating yo
 - When user asks about "tap" for KITCHEN SINK → answer: "pull-out tap included"
 - Send MAXIMUM 2 messages per response, prefer single message when possible
 - Stay on the SAME product the user is asking about - don't switch products mid-conversation
+- IMPORTANT: When user responds with short affirmatives like 'yes', 'sure', 'yea', 'ok', 'yeah sure' → continue discussing the SAME product from the previous message
+- If conversation context shows a CURRENT TOPIC, always respond about that topic unless user explicitly asks about something else
 
 ## VANITY PROMO FAQ - $498 (U.P. $698)
 **IMPORTANT: Basin tap NOT included - sold separately**
@@ -261,12 +263,32 @@ async function generateResponseWithHistory(prompt, conversationHistory) {
   try {
     // Format conversation history
     let context = '';
+    let currentTopic = null;
+    
     if (conversationHistory && conversationHistory.length > 0) {
+      // Analyze recent conversation to determine current topic
+      const recentMessages = conversationHistory.slice(-3).reverse();
+      for (const conv of recentMessages) {
+        const lowerResponse = conv.response.toLowerCase();
+        if (lowerResponse.includes('vanity')) {
+          currentTopic = 'vanity set';
+        } else if (lowerResponse.includes('kitchen sink') || lowerResponse.includes('pull-out tap')) {
+          currentTopic = 'kitchen sink';
+        } else if (lowerResponse.includes('toilet bowl')) {
+          currentTopic = 'toilet bowl';
+        }
+      }
+      
       context = conversationHistory
         .slice(-5) // Get last 5 exchanges
         .reverse() // Put in chronological order
         .map(conv => `Customer: ${conv.message}\nESSEN Assistant: ${conv.response}`)
         .join('\n\n');
+      
+      // Add current topic to context if detected
+      if (currentTopic) {
+        context = `CURRENT TOPIC: Customer is asking about ${currentTopic}\n\n${context}`;
+      }
     }
     
     return await generateResponse(prompt, context);

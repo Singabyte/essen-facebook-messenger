@@ -16,7 +16,7 @@ module.exports = {
   // Gemini configuration
   gemini: {
     apiKey: process.env.GEMINI_API_KEY,
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     maxTokens: 2048,
     temperature: 0.7
   },
