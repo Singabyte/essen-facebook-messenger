@@ -57,8 +57,8 @@ async function sendMultipleMessages(recipientId, messages) {
     // Send typing indicator before each message
     await sendTypingIndicator(recipientId, true);
     
-    // Small delay to show typing (500ms)
-    await delay(500);
+    // Fixed delay to show typing (5000ms)
+    await delay(5000);
     
     // Send the actual message
     await sendMessage(recipientId, text);

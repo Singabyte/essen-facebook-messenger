@@ -201,22 +201,13 @@ You: "for your specific needs||WAIT:1500||best to visit our showroom||WAIT:1500|
 }
 
 // Generate response using Gemini with enhanced conversation context
-async function generateResponse(prompt, context = '', conversationInsights = null) {
+async function generateResponse(prompt, context = '') {
   try {
-    // Build the full prompt with context and insights
+    // Build the full prompt with context
     let fullPrompt = getSystemPrompt() + '\n\n';
     
     if (context) {
       fullPrompt += `Previous conversation context:\n${context}\n\n`;
-    }
-    
-    // Add conversation insights for more personalized responses
-    if (conversationInsights) {
-      fullPrompt += `Conversation insights:\n`;
-      fullPrompt += `- Message count: ${conversationInsights.messageCount}\n`;
-      fullPrompt += `- Categories inquired: ${conversationInsights.categoriesInquired.join(', ')}\n`;
-      fullPrompt += `- User interests: ${conversationInsights.interests.join(', ')}\n`;
-      fullPrompt += `- Urgency level: ${conversationInsights.urgencyLevel}\n\n`;
     }
     
     fullPrompt += `Customer: ${prompt}\nESSEN Assistant:`;
@@ -256,8 +247,8 @@ async function generateResponse(prompt, context = '', conversationInsights = nul
 }
 
 
-// Generate response with conversation history and insights
-async function generateResponseWithHistory(prompt, conversationHistory, conversationInsights = null) {
+// Generate response with conversation history
+async function generateResponseWithHistory(prompt, conversationHistory) {
   try {
     // Format conversation history
     let context = '';
@@ -269,7 +260,7 @@ async function generateResponseWithHistory(prompt, conversationHistory, conversa
         .join('\n\n');
     }
     
-    return await generateResponse(prompt, context, conversationInsights);
+    return await generateResponse(prompt, context);
   } catch (error) {
     console.error('Error generating response with history:', error);
     return await generateResponse(prompt); // Fallback to no context
@@ -284,13 +275,12 @@ async function generateQuickReplies(userMessage, botResponse) {
 Customer: ${userMessage}
 ESSEN Assistant: ${botResponse}
 
-Generate 2-3 relevant follow-up options for the customer. Consider:
-- Product categories (sofas, dining, bedroom, kitchen, bathroom)
+Generate two relevant follow-up options for the customer. Consider:
 - Services (showroom visit, design consultation)
-- Common concerns (delivery, warranty, customization)
+- Promotion Info (based on FAQ)
 
 Return as JSON array of strings, each under 20 characters.
-Example: ["View sofas", "Book consultation", "Showroom info"]`;
+Example: ["Showroom Location", "Reserve Promo"]`;
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -305,17 +295,17 @@ Example: ["View sofas", "Book consultation", "Showroom info"]`;
       const jsonMatch = text.match(/\[.*\]/s);
       if (jsonMatch) {
         const replies = JSON.parse(jsonMatch[0]);
-        return replies.slice(0, 3); // Maximum 3 quick replies
+        return replies.slice(0, 2); // Maximum 2 quick replies
       }
     } catch (e) {
       console.error('Failed to parse quick replies:', e);
     }
     
     // Default ESSEN-specific quick replies
-    return ["View products", "Visit showroom", "Book consultation"];
+    return ["Visit Showroom", "Book Consultation"];
   } catch (error) {
     console.error('Error generating quick replies:', error);
-    return ["View products", "Visit showroom", "Book consultation"];
+    return ["Visit Showroom", "Book Consultation"];
   }
 }
 
