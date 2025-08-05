@@ -173,7 +173,7 @@ async function handleMessage(event) {
     await db.saveUser(senderId, { name: 'User' });
     
     // Get conversation history
-    const history = await db.getConversationHistory(senderId, 5);
+    const history = await db.getConversationHistory(senderId, 15);
     
     // Generate AI response for all messages with retry logic
     let response = '';
