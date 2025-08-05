@@ -4,6 +4,9 @@ const axios = require('axios');
 // const path = require('path'); // Not needed without knowledge base loading
 
 // Initialize Gemini AI
+if (!process.env.GEMINI_API_KEY) {
+  console.error('WARNING: GEMINI_API_KEY is not set in environment variables');
+}
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
@@ -227,7 +230,7 @@ async function generateResponse(prompt, context = '') {
     // Use slightly higher temperature for more natural responses
     const enhancedConfig = {
       ...generationConfig,
-      temperature: 0.8,
+      temperature: 0.7, // Slightly lower for more consistent responses
       maxOutputTokens: 256 // Shorter responses for human-like feel
     };
     
@@ -239,11 +242,37 @@ async function generateResponse(prompt, context = '') {
     });
     
     const response = result.response;
-    let text = response.text();
+    
+    // Check if response was blocked
+    if (response.promptFeedback?.blockReason) {
+      console.error('Response blocked:', response.promptFeedback);
+      return 'hey! let me help you with our furniture promos instead! we have great deals on vanity sets, kitchen sinks, and toilet bowls! 😊';
+    }
+    
+    let text = '';
+    try {
+      text = response.text();
+    } catch (textError) {
+      console.error('Error getting text from response:', textError);
+      console.error('Response object:', response);
+      return 'hey! let me help you with our amazing furniture promos! 😊';
+    }
+    
+    if (!text || !text.trim()) {
+      console.error('Gemini returned empty response');
+      console.error('Response candidates:', response.candidates);
+      console.error('Prompt length:', fullPrompt.length);
+    }
     
     return text.trim();
   } catch (error) {
     console.error('Gemini API error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      statusText: error.statusText,
+      prompt: prompt.substring(0, 100) + '...'
+    });
     
     // Handle specific errors with more natural language
     if (error.message?.includes('API key')) {

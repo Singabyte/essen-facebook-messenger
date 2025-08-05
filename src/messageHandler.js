@@ -35,9 +35,15 @@ async function sendTypingIndicator(recipientId, isTyping = true) {
 
 // Simple send message function
 async function sendMessage(recipientId, text) {
+  // Safety check - never send empty messages
+  if (!text || !text.trim()) {
+    console.error('Attempted to send empty message, aborting');
+    return null;
+  }
+  
   const messageData = {
     recipient: { id: recipientId },
-    message: { text }
+    message: { text: text.trim() }
   };
   
   try {
@@ -212,17 +218,30 @@ async function handleMessage(event) {
     // Parse response for multiple messages
     const messages = parseMultiMessageResponse(response);
     
-    if (messages.length > 1) {
+    // Final safety check - ensure no empty messages
+    const validMessages = messages.filter(m => m.text && m.text.trim());
+    
+    if (validMessages.length === 0) {
+      console.error('No valid messages after parsing, using emergency fallback');
+      const emergencyMessage = imageUrls.length > 0 
+        ? 'thanks for the photo! let me help you find the perfect ESSEN product for your space! 😊'
+        : 'hey! let me help you with our amazing promos on vanity sets, kitchen sinks, and toilet bowls! which one interests you? 😊';
+      await sendMessage(senderId, emergencyMessage);
+      await db.saveConversation(senderId, userMessage, emergencyMessage);
+      return;
+    }
+    
+    if (validMessages.length > 1) {
       // Multiple messages - send with delays
-      await sendMultipleMessages(senderId, messages);
+      await sendMultipleMessages(senderId, validMessages);
       
       // Save all messages to conversation history
-      const fullResponse = messages.map(m => m.text).join(' ');
-      await db.saveConversation(senderId, messageText, fullResponse);
+      const fullResponse = validMessages.map(m => m.text).join(' ');
+      await db.saveConversation(senderId, userMessage, fullResponse);
     } else {
       // Single message - use consistent message format
-      await sendMessage(senderId, messages[0].text);
-      await db.saveConversation(senderId, messageText, messages[0].text);
+      await sendMessage(senderId, validMessages[0].text);
+      await db.saveConversation(senderId, userMessage, validMessages[0].text);
     }
     
   } catch (error) {
