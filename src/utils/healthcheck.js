@@ -408,7 +408,17 @@ async function performComprehensiveHealthCheck() {
   };
   
   try {
-    // Run all health checks in parallel for better performance
+    // Add individual timeouts to prevent hanging
+    const withTimeout = (promise, timeoutMs, name) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`${name} health check timed out`)), timeoutMs)
+        )
+      ]);
+    };
+
+    // Run all health checks in parallel with timeouts
     const [
       database,
       facebook,
@@ -418,12 +428,12 @@ async function performComprehensiveHealthCheck() {
       humanIntervention,
       systemResources
     ] = await Promise.allSettled([
-      checkDatabaseHealth(),
-      checkFacebookApiHealth(),
-      checkGeminiApiHealth(),
-      checkSocketioHealth(),
-      checkTemplateCacheHealth(),
-      checkHumanInterventionHealth(),
+      withTimeout(checkDatabaseHealth(), 3000, 'Database'),
+      withTimeout(checkFacebookApiHealth(), 3000, 'Facebook'),
+      withTimeout(checkGeminiApiHealth(), 3000, 'Gemini'),
+      withTimeout(checkSocketioHealth(), 1000, 'Socket.io'),
+      withTimeout(checkTemplateCacheHealth(), 1000, 'Template Cache'),
+      withTimeout(checkHumanInterventionHealth(), 1000, 'Human Intervention'),
       Promise.resolve(checkSystemResourceHealth())
     ]);
     

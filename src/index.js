@@ -109,6 +109,24 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Quick health check endpoint (lightweight)
+app.get('/debug/health-quick', (req, res) => {
+  const memUsage = process.memoryUsage();
+  const uptime = process.uptime();
+  
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: uptime,
+    memory: {
+      rss: Math.round(memUsage.rss / 1024 / 1024),
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024)
+    },
+    pid: process.pid,
+    correlationId: req.correlationId
+  });
+});
+
 // Diagnostic endpoint
 app.get('/debug/version', (req, res) => {
   const fs = require('fs');
