@@ -2,80 +2,39 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const messageHandler = require('./messageHandler');
-const { db } = require('./database-pg');
-const { logAnalytics } = db;
+// Simple webhook handler - no analytics needed
 
-// Test endpoint to verify router is working
-router.get('/test', (req, res) => {
-  res.json({ message: 'Webhook router is working', query: req.query });
-});
-
-// Also handle requests at root path (for DigitalOcean ingress)
+// Webhook endpoints
 router.get('/', handleWebhookVerification);
 router.post('/', handleWebhookMessage);
 
 // Webhook verification endpoint
 function handleWebhookVerification(req, res) {
-  console.log('=== WEBHOOK VERIFICATION ===');
-  console.log('Method:', req.method);
-  console.log('URL:', req.url);
-  console.log('Original URL:', req.originalUrl);
-  console.log('Query params:', JSON.stringify(req.query));
-  console.log('Headers:', JSON.stringify(req.headers));
-  
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
   
-  // Check if this is a webhook verification request
-  if (mode === 'subscribe' && token && challenge) {
-    if (token === process.env.VERIFY_TOKEN) {
+  if (mode && token) {
+    if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) {
       console.log('Webhook verified successfully');
       res.status(200).send(challenge);
     } else {
       console.warn('Webhook verification failed - invalid token');
       res.sendStatus(403);
     }
-  } else if (mode || token || challenge) {
-    // Partial webhook params - invalid request
-    console.warn('Invalid webhook verification request - missing parameters');
-    res.sendStatus(400);
   } else {
-    // No webhook params - return bot status for regular GET requests
-    res.status(200).json({ 
-      name: 'Facebook Messenger Bot',
-      status: 'Running',
-      version: '1.0.0'
-    });
+    res.sendStatus(400);
   }
 }
 
 // Message handling endpoint
 async function handleWebhookMessage(req, res) {
-  console.log('Webhook POST received');
-  console.log('Headers:', JSON.stringify(req.headers));
-  console.log('Body:', JSON.stringify(req.body));
-  
   const body = req.body;
   
   // Verify webhook signature
   if (!verifyWebhookSignature(req)) {
     console.error('Invalid webhook signature');
-    console.error('Debug info:', {
-      hasRawBody: !!req.rawBody,
-      rawBodyLength: req.rawBody?.length,
-      bodyKeys: Object.keys(req.body),
-      hasSignature256: !!req.headers['x-hub-signature-256'],
-      hasSignature: !!req.headers['x-hub-signature'],
-      appSecretSet: !!process.env.APP_SECRET
-    });
-    
-    // Temporary: Allow messages through if APP_SECRET is not set (development only)
-    if (!process.env.APP_SECRET) {
-      console.warn('⚠️  APP_SECRET not set - bypassing signature verification (UNSAFE!)');
-    } else {
-      return res.sendStatus(403);
-    }
+    return res.sendStatus(403);
   }
   
   if (body.object === 'page') {
@@ -84,21 +43,16 @@ async function handleWebhookMessage(req, res) {
       const webhookEvent = entry.messaging[0];
       const senderId = webhookEvent.sender.id;
       
-      // Log webhook event (with error handling to prevent timeouts)
-      try {
-        await logAnalytics('webhook_received', senderId, {
-          type: getEventType(webhookEvent),
-          timestamp: entry.time
-        });
-      } catch (dbError) {
-        console.warn('Database logging failed (non-critical):', dbError.message);
-        // Continue processing even if analytics logging fails
+      // Check if message is from Page itself (echo)
+      if (webhookEvent.sender.id === webhookEvent.recipient.id) {
+        console.log('Ignoring message from page itself');
+        continue;
       }
       
       // Handle different types of events (with error handling)
       try {
-        if (webhookEvent.message) {
-          // Regular message
+        if (webhookEvent.message && !webhookEvent.message.is_echo) {
+          // Skip echo messages
           await messageHandler.handleMessage(webhookEvent);
         } else if (webhookEvent.postback) {
           // Postback event
@@ -131,74 +85,22 @@ async function handleWebhookMessage(req, res) {
 
 // Verify webhook signature
 function verifyWebhookSignature(req) {
-  // Facebook sends both SHA1 and SHA256 signatures
-  const sha256Signature = req.headers['x-hub-signature-256'];
-  const sha1Signature = req.headers['x-hub-signature'];
+  const signature = req.headers['x-hub-signature-256'];
   
-  if (!sha256Signature && !sha1Signature) {
+  if (!signature) {
     console.warn('No signature found in request headers');
-    console.warn('Headers:', JSON.stringify(req.headers));
     return false;
   }
   
-  // Use raw body if available, otherwise stringify the parsed body
-  const bodyToVerify = req.rawBody || JSON.stringify(req.body);
+  const elements = signature.split('=');
+  const signatureHash = elements[1];
   
-  // Try SHA256 first (newer)
-  if (sha256Signature) {
-    const elements = sha256Signature.split('=');
-    const signatureHash = elements[1];
-    
-    const expectedHash = crypto
-      .createHmac('sha256', process.env.APP_SECRET)
-      .update(bodyToVerify)
-      .digest('hex');
-    
-    if (signatureHash === expectedHash) {
-      return true;
-    }
-  }
+  const expectedHash = crypto
+    .createHmac('sha256', process.env.APP_SECRET)
+    .update(req.rawBody || JSON.stringify(req.body))
+    .digest('hex');
   
-  // Fallback to SHA1 (older)
-  if (sha1Signature) {
-    const elements = sha1Signature.split('=');
-    const signatureHash = elements[1];
-    
-    const expectedHash = crypto
-      .createHmac('sha1', process.env.APP_SECRET)
-      .update(bodyToVerify)
-      .digest('hex');
-    
-    if (signatureHash === expectedHash) {
-      return true;
-    }
-  }
-  
-  // Debug logging if both fail
-  console.error('Signature verification failed:');
-  console.error('SHA256 signature:', sha256Signature);
-  console.error('SHA1 signature:', sha1Signature);
-  console.error('APP_SECRET exists:', !!process.env.APP_SECRET);
-  console.error('APP_SECRET length:', process.env.APP_SECRET?.length);
-  console.error('Body type:', typeof bodyToVerify);
-  console.error('Body length:', bodyToVerify.length);
-  console.error('First 100 chars of body:', bodyToVerify.substring(0, 100));
-  
-  return false;
-}
-
-// Get event type for analytics
-function getEventType(webhookEvent) {
-  if (webhookEvent.message) {
-    if (webhookEvent.message.text) return 'text_message';
-    if (webhookEvent.message.attachments) return 'attachment_message';
-    if (webhookEvent.message.quick_reply) return 'quick_reply';
-    return 'message';
-  }
-  if (webhookEvent.postback) return 'postback';
-  if (webhookEvent.read) return 'read';
-  if (webhookEvent.delivery) return 'delivery';
-  return 'unknown';
+  return signatureHash === expectedHash;
 }
 
 module.exports = router;
