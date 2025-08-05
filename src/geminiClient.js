@@ -228,7 +228,7 @@ async function generateResponse(prompt, context = '') {
     const enhancedConfig = {
       ...generationConfig,
       temperature: 0.8,
-      maxOutputTokens: 256 // Shorter responses for human-like feel
+      maxOutputTokens: 1024 // Increased to prevent MAX_TOKENS error
     };
     
     // Generate content
@@ -429,7 +429,7 @@ async function generateResponseWithHistoryAndImages(prompt, conversationHistory,
       generationConfig: {
         ...generationConfig,
         temperature: 0.8,
-        maxOutputTokens: 256
+        maxOutputTokens: 1024 // Increased to prevent MAX_TOKENS error
       },
       safetySettings,
     });
