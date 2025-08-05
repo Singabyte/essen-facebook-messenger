@@ -4,6 +4,10 @@ const { generateResponseWithHistory } = require('./geminiClient');
 
 const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 
+// In-memory cache for deduplication
+const recentMessages = new Map(); // Map of senderId -> { messageText, timestamp }
+const DEDUP_WINDOW_MS = 5000; // 5 second window
+
 // Utility function for delays
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -104,6 +108,32 @@ async function handleMessage(event) {
     return;
   }
   
+  // Check for duplicate messages
+  const lastMessage = recentMessages.get(senderId);
+  if (lastMessage) {
+    const timeSinceLastMessage = Date.now() - lastMessage.timestamp;
+    if (lastMessage.messageText === messageText && timeSinceLastMessage < DEDUP_WINDOW_MS) {
+      console.log(`Duplicate message detected from ${senderId}, ignoring (${timeSinceLastMessage}ms since last)`);
+      return;
+    }
+  }
+  
+  // Update recent message cache
+  recentMessages.set(senderId, {
+    messageText,
+    timestamp: Date.now()
+  });
+  
+  // Clean up old entries periodically
+  if (recentMessages.size > 100) {
+    const cutoffTime = Date.now() - DEDUP_WINDOW_MS;
+    for (const [id, data] of recentMessages.entries()) {
+      if (data.timestamp < cutoffTime) {
+        recentMessages.delete(id);
+      }
+    }
+  }
+  
   try {
     // Save user if new
     await db.saveUser(senderId, { name: 'User' });
@@ -116,6 +146,12 @@ async function handleMessage(event) {
     
     // Parse response for multiple messages
     const messages = parseMultiMessageResponse(response);
+    
+    // Limit to maximum 2 messages to prevent spam
+    if (messages.length > 2) {
+      console.log(`Limiting messages from ${messages.length} to 2 for user ${senderId}`);
+      messages.splice(2); // Keep only first 2 messages
+    }
     
     if (messages.length > 1) {
       // Multiple messages - send with delays

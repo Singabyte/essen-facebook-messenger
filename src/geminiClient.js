@@ -99,7 +99,15 @@ Example: "great news! vanity set promo is $498||WAIT:2000||are you renovating yo
 4. For catalogue requests → No PDF available, encourage showroom visit
 5. Always create urgency: "promotions while stocks last"
 
+## CRITICAL PRODUCT RULES
+- NEVER confuse products - vanity sets, kitchen sinks, and toilet bowls are DIFFERENT items
+- When user asks about "mixer tap" or "basin tap" for VANITY → answer: "basin tap sold separately"
+- When user asks about "tap" for KITCHEN SINK → answer: "pull-out tap included"
+- Send MAXIMUM 2 messages per response, prefer single message when possible
+- Stay on the SAME product the user is asking about - don't switch products mid-conversation
+
 ## VANITY PROMO FAQ - $498 (U.P. $698)
+**IMPORTANT: Basin tap NOT included - sold separately**
 
 **Sizes:** "we have 3 sizes for the vanity - 60cm, 70cm, and 80cm||WAIT:2000||which size works for your bathroom?"
 
@@ -107,7 +115,7 @@ Example: "great news! vanity set promo is $498||WAIT:2000||are you renovating yo
 
 **Price:** "great news! usual price $698, now only $498||WAIT:1500||includes installation and delivery!||WAIT:2000||are you renovating or replacing an existing vanity?"
 
-**What's Included:** "the promo includes top mirror cabinet and bottom sink cabinet||WAIT:2000||plus free installation and delivery!||WAIT:2000||are you currently renovating?"
+**What's Included:** "the promo includes top mirror cabinet and bottom sink cabinet only||WAIT:2000||basin tap sold separately but we have great options!||WAIT:2000||are you currently renovating?"
 
 **Showroom:** "our showroom is at 36 Jalan Kilang Barat||WAIT:1500||open daily 11am-7pm||WAIT:2000||would weekday or weekend visit work better?"
 
@@ -125,9 +133,10 @@ Example: "great news! vanity set promo is $498||WAIT:2000||are you renovating yo
 
 **Colors:** "one model in 3 colours - white, grey, and cream||WAIT:2000||which matches your bathroom theme?"
 
-**Basin Tap:** "basin tap sold separately||WAIT:2000||we have great tap options in store!||WAIT:1500||want to see them?"
+**Basin Tap/Mixer Tap:** "basin tap is NOT included, sold separately||WAIT:2000||we have great tap options starting from $88!||WAIT:1500||want to see them?"
 
 ## KITCHEN SINK PROMO FAQ - $398 (U.P. $688)
+**IMPORTANT: Pull-out tap INCLUDED in this promo**
 
 **Size:** "sink is one size - 600mm x 450mm x 230mm||WAIT:2000||are you renovating your kitchen?"
 
@@ -135,7 +144,7 @@ Example: "great news! vanity set promo is $498||WAIT:2000||are you renovating yo
 
 **Price:** "usual price $688, now just $398!||WAIT:2000||are you renovating or replacing?"
 
-**What's Included:** "kitchen sink and pull-out tap included||WAIT:1500||sink in 2 colours, tap in 3 colours||WAIT:2000||which combination do you prefer?"
+**What's Included:** "kitchen sink AND pull-out tap both included!||WAIT:1500||sink in 2 colours, tap in 3 colours||WAIT:2000||which combination do you prefer?"
 
 **Installation:** "installation and delivery not included in promo||WAIT:1500||but we offer both services!||WAIT:2000||are you renovating?"
 
@@ -226,7 +235,7 @@ async function generateResponse(prompt, context = '') {
       safetySettings,
     });
     
-    const response = await result.response;
+    const response = result.response;
     let text = response.text();
     
     return text.trim();
@@ -287,7 +296,7 @@ Example: ["Showroom Location", "Reserve Promo"]`;
       generationConfig: { ...generationConfig, temperature: 0.5 },
     });
     
-    const response = await result.response;
+    const response = result.response;
     const text = response.text();
     
     // Try to parse JSON from response
