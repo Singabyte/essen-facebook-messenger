@@ -293,10 +293,37 @@ async function takeThreadControl(recipientId, metadata = '') {
 
 // Initialize all Facebook features
 async function initializeFacebookFeatures() {
-  await setGreeting();
-  await setGetStarted();
-  await setPersistentMenu();
-  console.log('Facebook features initialized');
+  try {
+    // Check if we have a valid PAGE_ACCESS_TOKEN
+    if (!process.env.PAGE_ACCESS_TOKEN) {
+      console.log('PAGE_ACCESS_TOKEN not found, skipping Facebook features initialization');
+      return;
+    }
+
+    // Try to set up features but don't fail if they error
+    try {
+      await setGreeting();
+    } catch (error) {
+      console.log('Could not set greeting - this is normal if using a user token instead of page token');
+    }
+
+    try {
+      await setGetStarted();
+    } catch (error) {
+      console.log('Could not set get started button - this is normal if using a user token instead of page token');
+    }
+
+    try {
+      await setPersistentMenu();
+    } catch (error) {
+      console.log('Could not set persistent menu - this is normal if using a user token instead of page token');
+    }
+
+    console.log('Facebook features initialization attempted');
+  } catch (error) {
+    console.error('Error initializing Facebook features:', error);
+    // Don't throw - let the bot continue running
+  }
 }
 
 module.exports = {

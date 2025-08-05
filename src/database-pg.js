@@ -381,9 +381,7 @@ async function initDatabase() {
         tablename,
         attname,
         n_distinct,
-        correlation,
-        most_common_vals,
-        most_common_freqs
+        correlation
       FROM pg_stats 
       WHERE schemaname = 'public'
     `);
