@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 // const fs = require('fs'); // Not needed without knowledge base loading
 // const path = require('path'); // Not needed without knowledge base loading
 
@@ -103,7 +104,7 @@ Example: "great news! vanity set promo is $498||WAIT:2000||are you renovating yo
 - NEVER confuse products - vanity sets, kitchen sinks, and toilet bowls are DIFFERENT items
 - When user asks about "mixer tap" or "basin tap" for VANITY → answer: "basin tap sold separately"
 - When user asks about "tap" for KITCHEN SINK → answer: "pull-out tap included"
-- Send MAXIMUM 2 messages per response, prefer single message when possible
+- Send MAXIMUM 3 messages per response, but prefer fewer messages when possible
 - Stay on the SAME product the user is asking about - don't switch products mid-conversation
 - IMPORTANT: When user responds with short affirmatives like 'yes', 'sure', 'yea', 'ok', 'yeah sure' → continue discussing the SAME product from the previous message
 - If conversation context shows a CURRENT TOPIC, always respond about that topic unless user explicitly asks about something else
@@ -341,9 +342,112 @@ Example: ["Showroom Location", "Reserve Promo"]`;
 }
 
 
+// Function to download image from URL and convert to base64
+async function downloadImageAsBase64(imageUrl) {
+  try {
+    const response = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 10000 // 10 second timeout
+    });
+    
+    const base64 = Buffer.from(response.data, 'binary').toString('base64');
+    const mimeType = response.headers['content-type'] || 'image/jpeg';
+    
+    return {
+      inlineData: {
+        data: base64,
+        mimeType: mimeType
+      }
+    };
+  } catch (error) {
+    console.error('Error downloading image:', error.message);
+    return null;
+  }
+}
+
+// Generate response with conversation history and images
+async function generateResponseWithHistoryAndImages(prompt, conversationHistory, imageUrls) {
+  try {
+    // Format conversation history
+    let context = '';
+    let currentTopic = null;
+    
+    if (conversationHistory && conversationHistory.length > 0) {
+      // Analyze recent conversation to determine current topic
+      const recentMessages = conversationHistory.slice(-3).reverse();
+      for (const conv of recentMessages) {
+        const lowerResponse = conv.response.toLowerCase();
+        if (lowerResponse.includes('vanity')) {
+          currentTopic = 'vanity set';
+        } else if (lowerResponse.includes('kitchen sink') || lowerResponse.includes('pull-out tap')) {
+          currentTopic = 'kitchen sink';
+        } else if (lowerResponse.includes('toilet bowl')) {
+          currentTopic = 'toilet bowl';
+        }
+      }
+      
+      context = conversationHistory
+        .slice(-5) // Get last 5 exchanges
+        .reverse() // Put in chronological order
+        .map(conv => `Customer: ${conv.message}\nESSEN Assistant: ${conv.response}`)
+        .join('\n\n');
+      
+      // Add current topic to context if detected
+      if (currentTopic) {
+        context = `CURRENT TOPIC: Customer is asking about ${currentTopic}\n\n${context}`;
+      }
+    }
+    
+    // Build the full prompt
+    let fullPrompt = getSystemPrompt() + '\n\n';
+    
+    // Add image analysis context
+    fullPrompt += `IMPORTANT: The customer has shared ${imageUrls.length} image(s). Analyze the image(s) to understand what they're showing - it could be their current sink, vanity, bathroom space, or inspiration. Respond based on what you see and relate it to ESSEN products.\n\n`;
+    
+    if (context) {
+      fullPrompt += `Previous conversation context:\n${context}\n\n`;
+    }
+    
+    // Prepare message parts
+    const parts = [{ text: fullPrompt }];
+    
+    // Download and add images
+    for (const imageUrl of imageUrls) {
+      const imageData = await downloadImageAsBase64(imageUrl);
+      if (imageData) {
+        parts.push(imageData);
+      }
+    }
+    
+    // Add user message
+    const userPrompt = prompt ? `Customer: ${prompt}` : 'Customer: [Sent an image]';
+    parts.push({ text: `${userPrompt}\nESSEN Assistant:` });
+    
+    // Generate content with images
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts }],
+      generationConfig: {
+        ...generationConfig,
+        temperature: 0.8,
+        maxOutputTokens: 256
+      },
+      safetySettings,
+    });
+    
+    const response = result.response;
+    let text = response.text();
+    
+    return text.trim();
+  } catch (error) {
+    console.error('Gemini API error with images:', error);
+    return 'thanks for sharing! i can see you\'re interested in upgrading your space. could you tell me more about what you\'re looking for? are you thinking vanity set, kitchen sink, or toilet bowl? 😊';
+  }
+}
+
 module.exports = {
   generateResponse,
   generateResponseWithHistory,
+  generateResponseWithHistoryAndImages,
   generateQuickReplies
   // loadKnowledgeBase - commented out
 };

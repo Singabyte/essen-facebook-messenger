@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { db } = require('./database-pg');
-const { generateResponseWithHistory } = require('./geminiClient');
+const { generateResponseWithHistory, generateResponseWithHistoryAndImages } = require('./geminiClient');
 
 const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 
@@ -103,11 +103,25 @@ function parseMultiMessageResponse(response) {
 async function handleMessage(event) {
   const senderId = event.sender.id;
   const messageText = event.message?.text;
+  const messageAttachments = event.message?.attachments;
   const messageId = event.message?.mid;
   
-  if (!messageText) {
-    console.log('No text message to process');
+  // Check if message has neither text nor attachments
+  if (!messageText && !messageAttachments) {
+    console.log('No message content to process');
     return;
+  }
+  
+  // Extract image URLs from attachments
+  let imageUrls = [];
+  if (messageAttachments) {
+    imageUrls = messageAttachments
+      .filter(att => att.type === 'image' && att.payload?.url)
+      .map(att => att.payload.url);
+    
+    if (imageUrls.length > 0) {
+      console.log(`Received ${imageUrls.length} image(s) from user ${senderId}`);
+    }
   }
   
   // Check if we've already processed this message ID
@@ -161,17 +175,42 @@ async function handleMessage(event) {
     // Get conversation history
     const history = await db.getConversationHistory(senderId, 5);
     
-    // Generate AI response for all messages
-    const response = await generateResponseWithHistory(messageText, history);
+    // Generate AI response for all messages with retry logic
+    let response = '';
+    let retries = 0;
+    const maxRetries = 3;
+    
+    // Prepare message content - could be text, image, or both
+    const userMessage = messageText || '';
+    
+    while ((!response || !response.trim()) && retries < maxRetries) {
+      if (retries > 0) {
+        console.log(`Retry ${retries}/${maxRetries} - Empty response from Gemini, retrying...`);
+        await delay(500); // Small delay before retry
+      }
+      
+      // If there are images, use enhanced response function
+      if (imageUrls.length > 0) {
+        response = await generateResponseWithHistoryAndImages(userMessage, history, imageUrls);
+      } else {
+        response = await generateResponseWithHistory(userMessage, history);
+      }
+      
+      retries++;
+    }
+    
+    // If still empty after retries, use fallback
+    if (!response || !response.trim()) {
+      console.error('Empty response from Gemini after all retries');
+      if (imageUrls.length > 0) {
+        response = 'thanks for sharing the photo! let me help you with that. could you tell me more about what you\'re looking for? 😊';
+      } else {
+        response = 'hey! sorry, could you say that again? i want to make sure i understand correctly! 😊';
+      }
+    }
     
     // Parse response for multiple messages
     const messages = parseMultiMessageResponse(response);
-    
-    // Limit to maximum 2 messages to prevent spam
-    if (messages.length > 2) {
-      console.log(`Limiting messages from ${messages.length} to 2 for user ${senderId}`);
-      messages.splice(2); // Keep only first 2 messages
-    }
     
     if (messages.length > 1) {
       // Multiple messages - send with delays
@@ -181,9 +220,9 @@ async function handleMessage(event) {
       const fullResponse = messages.map(m => m.text).join(' ');
       await db.saveConversation(senderId, messageText, fullResponse);
     } else {
-      // Single message - existing behavior
-      await sendMessage(senderId, response);
-      await db.saveConversation(senderId, messageText, response);
+      // Single message - use consistent message format
+      await sendMessage(senderId, messages[0].text);
+      await db.saveConversation(senderId, messageText, messages[0].text);
     }
     
   } catch (error) {
