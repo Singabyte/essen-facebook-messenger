@@ -268,6 +268,15 @@ const emitToRoom = (room, event, data) => {
   }
 };
 
+// Emit to bot namespace
+const emitToBot = (event, data) => {
+  if (io) {
+    const botNamespace = io.of('/bot-connection');
+    console.log(`Emitting '${event}' to bot namespace`);
+    botNamespace.emit(event, data);
+  }
+};
+
 // Bot event handlers - to be called from main bot
 const botEventHandlers = {
   newConversation: (conversationData) => {
@@ -320,5 +329,6 @@ module.exports = {
   initializeWebSocket,
   emitToAdmins,
   emitToRoom,
+  emitToBot,
   botEventHandlers
 };

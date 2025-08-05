@@ -1,4 +1,5 @@
 const io = require('socket.io-client');
+const { loadKnowledgeBase } = require('./geminiClient');
 
 let adminSocket = null;
 let isConnected = false;
@@ -48,6 +49,25 @@ const initializeAdminSocket = () => {
 
   adminSocket.on('connect_error', (error) => {
     console.error('Admin socket connection error:', error.message);
+  });
+
+  // Listen for knowledge base reload event
+  adminSocket.on('knowledgebase:reload', () => {
+    console.log('Received knowledge base reload request from admin');
+    const result = loadKnowledgeBase();
+    if (result) {
+      console.log('Knowledge base reloaded successfully');
+      emitToAdmin('knowledgebase:reload:success', { 
+        timestamp: new Date().toISOString(),
+        message: 'Knowledge base reloaded successfully'
+      });
+    } else {
+      console.error('Failed to reload knowledge base');
+      emitToAdmin('knowledgebase:reload:error', { 
+        timestamp: new Date().toISOString(),
+        message: 'Failed to reload knowledge base'
+      });
+    }
   });
   }, 5000); // Wait 5 seconds before connecting
 };

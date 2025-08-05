@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs').promises;
 const path = require('path');
+const { emitToBot } = require('../websocket');
 
 // For admin API, files should be in the current working directory after build
 const KB_DIR = process.cwd();
@@ -108,6 +109,14 @@ router.put('/files/:id', async (req, res) => {
     
     // Write new content
     await fs.writeFile(filePath, content, 'utf-8');
+    
+    // Notify bot to reload knowledge base
+    console.log('Notifying bot to reload knowledge base...');
+    emitToBot('knowledgebase:reload', {
+      fileId: id,
+      filename: filename,
+      timestamp: new Date().toISOString()
+    });
     
     res.json({
       message: 'File updated successfully',

@@ -10,24 +10,32 @@ const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 let essenKnowledge = '';
 let singaporeExamples = '';
 
-try {
-  // Use process.cwd() to ensure we're reading from the correct directory
-  const rootDir = process.cwd();
-  const kbPath = path.join(rootDir, 'essen-chatbot-kb.md');
-  const sgPath = path.join(rootDir, 'essen-chatbot-sg-examples.md');
-  
-  console.log('Loading knowledge base from:', kbPath);
-  console.log('Loading Singapore examples from:', sgPath);
-  
-  essenKnowledge = fs.readFileSync(kbPath, 'utf8');
-  singaporeExamples = fs.readFileSync(sgPath, 'utf8');
-  
-  console.log('Knowledge base loaded successfully');
-} catch (error) {
-  console.error('Error loading knowledge base:', error);
-  console.error('Current working directory:', process.cwd());
-  console.error('Directory contents:', fs.readdirSync(process.cwd()));
+// Function to load knowledge base
+function loadKnowledgeBase() {
+  try {
+    // Use process.cwd() to ensure we're reading from the correct directory
+    const rootDir = process.cwd();
+    const kbPath = path.join(rootDir, 'essen-chatbot-kb.md');
+    const sgPath = path.join(rootDir, 'essen-chatbot-sg-examples.md');
+    
+    console.log('Loading knowledge base from:', kbPath);
+    console.log('Loading Singapore examples from:', sgPath);
+    
+    essenKnowledge = fs.readFileSync(kbPath, 'utf8');
+    singaporeExamples = fs.readFileSync(sgPath, 'utf8');
+    
+    console.log('Knowledge base loaded successfully at', new Date().toLocaleString());
+    return true;
+  } catch (error) {
+    console.error('Error loading knowledge base:', error);
+    console.error('Current working directory:', process.cwd());
+    console.error('Directory contents:', fs.readdirSync(process.cwd()));
+    return false;
+  }
 }
+
+// Initial load
+loadKnowledgeBase();
 
 // Configuration for the chat
 const generationConfig = {
@@ -58,7 +66,8 @@ const safetySettings = [
 ];
 
 // ESSEN-specific system prompt with enhanced human-like conversation
-const SYSTEM_PROMPT = `You are the ESSEN Furniture Singapore customer service chatbot. You're helpful, friendly, and speak naturally like a Singaporean. Help customers with furniture, kitchen, and bathroom solutions.
+function getSystemPrompt() {
+  return `You are the ESSEN Furniture Singapore customer service chatbot. You're helpful, friendly, and speak naturally like a Singaporean. Help customers with furniture, kitchen, and bathroom solutions.
 
 CONVERSATION STYLE:
 - Be conversational and natural (use "lah", "sia", "right?" occasionally)
@@ -97,12 +106,13 @@ ${essenKnowledge}
 
 SINGAPORE CONTEXT:
 ${singaporeExamples}`;
+}
 
 // Generate response using Gemini with enhanced conversation context
 async function generateResponse(prompt, context = '', conversationInsights = null) {
   try {
     // Build the full prompt with context and insights
-    let fullPrompt = SYSTEM_PROMPT + '\n\n';
+    let fullPrompt = getSystemPrompt() + '\n\n';
     
     if (context) {
       fullPrompt += `Previous conversation context:\n${context}\n\n`;
@@ -291,5 +301,6 @@ module.exports = {
   generateResponseVariations,
   generateQuickReplies,
   getProductInfo,
-  enhanceResponseNaturalness
+  enhanceResponseNaturalness,
+  loadKnowledgeBase
 };

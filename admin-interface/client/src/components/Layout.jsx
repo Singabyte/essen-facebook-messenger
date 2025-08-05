@@ -30,9 +30,6 @@ import {
   Settings,
   Logout,
   Person,
-  Campaign,
-  Build,
-  HelpOutline,
   MonitorHeart,
 } from '@mui/icons-material'
 
@@ -44,9 +41,6 @@ const menuItems = [
   { text: 'Conversations', icon: <Chat />, path: '/conversations' },
   { text: 'Appointments', icon: <EventNote />, path: '/appointments' },
   { text: 'Knowledge Base', icon: <LibraryBooks />, path: '/knowledge-base' },
-  { text: 'Templates', icon: <Campaign />, path: '/templates' },
-  { text: 'Bot Configuration', icon: <Build />, path: '/bot-configuration' },
-  { text: 'FAQ Management', icon: <HelpOutline />, path: '/faqs' },
   { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
   { text: 'Monitoring', icon: <MonitorHeart />, path: '/monitoring' },
   { text: 'Settings', icon: <Settings />, path: '/settings' },
