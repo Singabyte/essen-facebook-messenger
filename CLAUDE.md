@@ -29,6 +29,58 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pm2 status` - Check PM2 process status
 - `pm2 restart facebook-bot` - Restart the bot
 
+## File Structure
+
+```
+essen-facebook-messenger/
+├── .claude/                        # Claude Code settings and agents
+│   ├── settings.local.json         # Local Claude settings
+│   └── agents/                     # Specialized agents for different tasks
+├── .do/                           # DigitalOcean deployment configs
+├── .github/workflows/             # GitHub Actions CI/CD workflows
+├── admin-interface/               # Admin dashboard for bot management
+│   ├── client/                    # React frontend (Vite + Material-UI)
+│   │   ├── src/
+│   │   │   ├── components/        # Reusable React components
+│   │   │   ├── context/           # React context providers
+│   │   │   ├── hooks/             # Custom React hooks
+│   │   │   ├── pages/             # Page components
+│   │   │   ├── services/          # API service functions
+│   │   │   ├── styles/            # Styling files
+│   │   │   └── utils/             # Utility functions
+│   │   ├── public/                # Static assets
+│   │   └── routes/                # Route configurations
+│   └── server/                    # Express backend API
+│       ├── src/
+│       │   ├── db/                # Database connections and queries
+│       │   ├── middleware/        # Express middleware
+│       │   └── routes/            # API route handlers
+│       └── scripts/               # Server utility scripts
+├── config/                        # Configuration files
+├── database/                      # Database files and migrations
+├── logs/                          # Application logs
+├── monitoring/                    # Monitoring configurations
+├── scripts/                       # Utility and deployment scripts
+├── sql/                          # SQL scripts and migrations
+├── src/                          # Main bot application source
+│   ├── database-pg.js            # PostgreSQL database layer
+│   ├── geminiClient.js           # Google Gemini AI integration
+│   ├── index.js                  # Main application entry point
+│   ├── messageHandler.js         # Core message processing logic
+│   └── webhook.js                # Facebook webhook handler
+├── tests/                        # Test suites
+│   ├── e2e/                      # End-to-end tests
+│   ├── fixtures/                 # Test data and fixtures
+│   ├── integration/              # Integration tests
+│   └── unit/                     # Unit tests
+├── essen-chatbot-kb.md           # ESSEN knowledge base
+├── essen-chatbot-sg-examples.md  # Singapore context examples
+├── app.yaml                      # App platform deployment config
+├── ecosystem.config.js           # PM2 process configuration
+├── package.json                  # Node.js dependencies and scripts
+└── playwright.config.js          # E2E testing configuration
+```
+
 ## Architecture
 
 ### Core Components
