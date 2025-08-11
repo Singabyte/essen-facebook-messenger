@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { get, all, run } = require('../db/connection');
+const { get, all, run } = require('../db/connection-pg');
 
 // Get all FAQs
 router.get('/', async (req, res) => {

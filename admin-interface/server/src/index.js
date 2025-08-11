@@ -242,7 +242,7 @@ app.post('/api/debug/test-login', async (req, res) => {
 app.get('/debug/db', async (req, res) => {
   const path = require('path');
   const fs = require('fs');
-  const { getAdminUsers } = require('./db/queries').admin;
+  const { getAdminUsers } = require('./db/queries-pg').admin;
   
   const dbPath = process.env.DB_PATH 
     ? process.env.DB_PATH
@@ -271,7 +271,7 @@ app.get('/debug/db', async (req, res) => {
 app.get('/api/debug/db', async (req, res) => {
   const path = require('path');
   const fs = require('fs');
-  const { getAdminUsers } = require('./db/queries').admin;
+  const { getAdminUsers } = require('./db/queries-pg').admin;
   
   const dbPath = process.env.DB_PATH 
     ? process.env.DB_PATH
