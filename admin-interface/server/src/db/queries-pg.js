@@ -107,7 +107,11 @@ const queries = {
           c.message,
           c.response,
           c.timestamp,
-          COALESCE(c.is_from_user, true) as is_from_user,
+          CASE 
+            WHEN c.is_from_user IS NOT NULL THEN c.is_from_user
+            WHEN c.message IS NOT NULL AND c.message != '' THEN true
+            ELSE false
+          END as is_from_user,
           COALESCE(c.is_admin_message, false) as is_admin_message,
           c.admin_id,
           u.name as user_name,
@@ -191,7 +195,11 @@ const queries = {
           c.message,
           c.response,
           c.timestamp,
-          COALESCE(c.is_from_user, true) as is_from_user,
+          CASE 
+            WHEN c.is_from_user IS NOT NULL THEN c.is_from_user
+            WHEN c.message IS NOT NULL AND c.message != '' THEN true
+            ELSE false
+          END as is_from_user,
           COALESCE(c.is_admin_message, false) as is_admin_message,
           c.admin_id,
           u.name as user_name,
@@ -215,7 +223,11 @@ const queries = {
           c.message,
           c.response,
           c.timestamp,
-          COALESCE(c.is_from_user, true) as is_from_user,
+          CASE 
+            WHEN c.is_from_user IS NOT NULL THEN c.is_from_user
+            WHEN c.message IS NOT NULL AND c.message != '' THEN true
+            ELSE false
+          END as is_from_user,
           COALESCE(c.is_admin_message, false) as is_admin_message,
           c.admin_id,
           u.name as user_name,

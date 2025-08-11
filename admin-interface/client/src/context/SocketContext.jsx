@@ -24,14 +24,15 @@ export const SocketProvider = ({ children }) => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
     const isProduction = apiUrl.includes('ondigitalocean.app');
     
-    // In production, we need to use the full URL with /api path
-    // In development, we connect directly to the server
+    // In production, use the same base URL as API but without /api suffix for socket connection
+    // The socket.io server is served from the same domain
     const socketUrl = isProduction 
-      ? apiUrl.replace('/api', '') // Base URL for production
+      ? apiUrl.replace('/api', '') // Base URL for production (https://essen-messenger-bot-zxxtw.ondigitalocean.app)
       : 'http://localhost:4000';
     
-    // Configure Socket.io path based on environment
-    // In production, DigitalOcean routes /api/* to the admin-api service
+    // Configure Socket.io path
+    // In production, the socket.io endpoint is available at /api/socket.io/
+    // The server listens on /socket.io/ but DigitalOcean routes /api/socket.io/ to it
     const socketPath = isProduction ? '/api/socket.io/' : '/socket.io/';
 
     console.log('Connecting to socket server:', {
