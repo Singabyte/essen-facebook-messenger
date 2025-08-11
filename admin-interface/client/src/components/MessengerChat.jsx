@@ -40,6 +40,39 @@ function MessengerChat({ user, onClose }) {
   const messagesEndRef = useRef(null);
   const socket = useSocket();
 
+  // Transform conversation data to handle combined message/response rows
+  const transformConversations = (conversations) => {
+    const transformed = [];
+    
+    conversations.forEach(conv => {
+      // Add user message if exists
+      if (conv.message && conv.message.trim()) {
+        transformed.push({
+          ...conv,
+          id: `${conv.id}-user`,
+          is_from_user: true,
+          is_admin_message: false,
+          display_text: conv.message,
+          message_type: 'user'
+        });
+      }
+      
+      // Add bot/admin response if exists
+      if (conv.response && conv.response.trim()) {
+        transformed.push({
+          ...conv,
+          id: `${conv.id}-response`,
+          is_from_user: false,
+          is_admin_message: conv.is_admin_message || false,
+          display_text: conv.response,
+          message_type: conv.is_admin_message ? 'admin' : 'bot'
+        });
+      }
+    });
+    
+    return transformed;
+  };
+
   // Fetch conversation history
   useEffect(() => {
     fetchConversation();
@@ -79,7 +112,10 @@ function MessengerChat({ user, onClose }) {
     setError(null);
     try {
       const response = await usersAPI.getRealTimeConversation(user.id);
-      setMessages(response.data.conversations || []);
+      const conversations = response.data.conversations || [];
+      // Transform conversations to separate user messages and bot responses
+      const transformedMessages = transformConversations(conversations);
+      setMessages(transformedMessages);
     } catch (error) {
       console.error('Error fetching conversation:', error);
       setError('Failed to load conversation history');
@@ -178,10 +214,11 @@ function MessengerChat({ user, onClose }) {
   };
 
   const renderMessage = (msg, index) => {
-    const isUserMessage = msg.is_from_user !== false && msg.message;
+    const isUserMessage = msg.is_from_user === true;
     const isAdminMessage = msg.is_admin_message === true;
     const isBotMessage = !isUserMessage && !isAdminMessage;
-    const messageText = isUserMessage ? msg.message : msg.response;
+    // Use display_text if available (from transformation), otherwise fallback to original logic
+    const messageText = msg.display_text || (isUserMessage ? msg.message : msg.response);
 
     return (
       <ListItem
