@@ -8,9 +8,19 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
+// Parse DATABASE_URL to handle SSL properly
+const connectionString = process.env.DATABASE_URL || '';
+const isProduction = connectionString.includes('digitalocean') || 
+                     connectionString.includes('ondigitalocean') ||
+                     process.env.NODE_ENV === 'production';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: isProduction ? {
+    rejectUnauthorized: false,
+    // DigitalOcean managed databases use self-signed certificates
+    // This is safe for managed databases but verify the connection string
+  } : false
 });
 
 async function applyFixes() {
