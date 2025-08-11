@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const queries = require('../db/queries');
-const { logAudit } = require('../db/connection');
+const queries = require('../db/queries-pg');
+const { logAudit } = require('../db/connection-pg');
 const authMiddleware = require('../middleware/auth');
 
 // Login

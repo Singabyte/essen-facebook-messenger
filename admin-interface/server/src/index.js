@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 4000;
 app.set('trust proxy', 1);
 
 // Initialize database
-const { initAdminTables } = require('./db/connection');
+const { initAdminTables } = require('./db/connection-pg');
 initAdminTables();
 
 // Middleware
@@ -45,7 +45,7 @@ app.get('/api/health', (req, res) => {
 // Initialize admin user endpoint
 app.post('/debug/init-admin', async (req, res) => {
   const bcrypt = require('bcryptjs');
-  const queries = require('./db/queries');
+  const queries = require('./db/queries-pg');
   
   try {
     const username = 'admin';
@@ -84,7 +84,7 @@ app.post('/debug/init-admin', async (req, res) => {
 });
 app.post('/api/debug/init-admin', async (req, res) => {
   const bcrypt = require('bcryptjs');
-  const queries = require('./db/queries');
+  const queries = require('./db/queries-pg');
   
   try {
     const username = 'admin';
@@ -153,7 +153,7 @@ app.get('/api/debug/env', (req, res) => {
 // Test login endpoint for debugging
 app.post('/debug/test-login', async (req, res) => {
   const bcrypt = require('bcryptjs');
-  const queries = require('./db/queries');
+  const queries = require('./db/queries-pg');
   
   try {
     // Test with hardcoded credentials
@@ -196,7 +196,7 @@ app.post('/debug/test-login', async (req, res) => {
 });
 app.post('/api/debug/test-login', async (req, res) => {
   const bcrypt = require('bcryptjs');
-  const queries = require('./db/queries');
+  const queries = require('./db/queries-pg');
   
   try {
     // Test with hardcoded credentials

@@ -1,6 +1,6 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const queries = require('./db/queries');
+const queries = require('./db/queries-pg');
 
 let io;
 const activeUsersToday = new Set(); // Track active users for today
