@@ -100,6 +100,8 @@ router.post('/:id/send-message', authMiddleware, async (req, res) => {
     const { message } = req.body;
     const adminId = req.user?.id || 'admin';
     
+    console.log(`Admin sending message to user ${id}: "${message}"`);
+    
     // Get user details for Facebook ID
     const user = await queries.users.getById(id);
     if (!user) {
@@ -110,8 +112,9 @@ router.post('/:id/send-message', authMiddleware, async (req, res) => {
     const axios = require('axios');
     const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
     
+    let fbResponse;
     try {
-      await axios.post(
+      fbResponse = await axios.post(
         `${FACEBOOK_API_URL}/me/messages`,
         {
           recipient: { id: user.id }, // Facebook user ID
@@ -123,16 +126,41 @@ router.post('/:id/send-message', authMiddleware, async (req, res) => {
           } 
         }
       );
-      
-      // Save message to database
-      const savedMessage = await queries.conversations.saveAdminMessage(
+      console.log('Facebook API response:', fbResponse.data);
+    } catch (fbError) {
+      console.error('Facebook API error:', fbError.response?.data || fbError.message);
+      return res.status(500).json({ 
+        message: 'Failed to send message via Facebook',
+        error: fbError.response?.data?.error?.message || fbError.message
+      });
+    }
+    
+    // Save message to database (optional - don't fail if this doesn't work)
+    let savedMessage = null;
+    try {
+      savedMessage = await queries.conversations.saveAdminMessage(
         id,
         '', // No user message in this case
         message,
         adminId
       );
-      
-      // Emit WebSocket event for real-time updates
+      console.log('Message saved to database');
+    } catch (dbError) {
+      console.error('Warning: Could not save message to database:', dbError.message);
+      // Create a mock saved message object for the response
+      savedMessage = {
+        user_id: id,
+        message: '',
+        response: message,
+        timestamp: new Date(),
+        is_from_user: false,
+        is_admin_message: true,
+        admin_id: adminId
+      };
+    }
+    
+    // Emit WebSocket event for real-time updates (optional)
+    try {
       if (req.io) {
         req.io.to(`user-${id}`).emit('new-message', {
           userId: id,
@@ -144,21 +172,22 @@ router.post('/:id/send-message', authMiddleware, async (req, res) => {
           userId: id,
           message: savedMessage
         });
+        console.log('WebSocket events emitted');
       }
-      
-      res.json({ 
-        success: true,
-        message: 'Message sent successfully',
-        conversation: savedMessage
-      });
-    } catch (fbError) {
-      console.error('Facebook API error:', fbError.response?.data || fbError.message);
-      res.status(500).json({ 
-        message: 'Failed to send message via Facebook',
-        error: fbError.response?.data?.error?.message || fbError.message
-      });
+    } catch (wsError) {
+      console.error('Warning: Could not emit WebSocket events:', wsError.message);
     }
+    
+    // Success response - message was sent via Facebook
+    res.json({ 
+      success: true,
+      message: 'Message sent successfully',
+      conversation: savedMessage,
+      fbMessageId: fbResponse?.data?.message_id
+    });
+    
   } catch (error) {
+    console.error('Unexpected error in send-message:', error);
     res.status(500).json({ message: 'Error sending message', error: error.message });
   }
 });

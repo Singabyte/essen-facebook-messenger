@@ -159,7 +159,7 @@ const queries = {
           is_from_user,
           is_admin_message,
           admin_id
-        ) VALUES ($1, $2, $3, NOW(), $4, true, $5)
+        ) VALUES ($1, $2, $3, NOW(), $4, $5, $6)
         RETURNING *
       `;
       
@@ -168,6 +168,7 @@ const queries = {
         message,
         response || '',
         false, // is_from_user = false for admin messages
+        true,  // is_admin_message = true
         adminId
       ]);
       
@@ -178,7 +179,14 @@ const queries = {
     getRealTimeConversation: async (userId, limit = 50) => {
       const query = `
         SELECT 
-          c.*,
+          c.id,
+          c.user_id,
+          c.message,
+          c.response,
+          c.timestamp,
+          COALESCE(c.is_from_user, true) as is_from_user,
+          COALESCE(c.is_admin_message, false) as is_admin_message,
+          c.admin_id,
           u.name as user_name,
           u.profile_pic
         FROM conversations c
