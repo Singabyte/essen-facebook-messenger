@@ -10,10 +10,21 @@ const { Pool } = require('pg');
 const fs = require('fs').promises;
 const path = require('path');
 
+// For production environments with self-signed certificates (DigitalOcean)
+if (process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('digitalocean')) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 // Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.DATABASE_URL ? {
+    rejectUnauthorized: false,
+    require: true,
+    requestCert: false
+  } : false,
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000
 });
 
 /**

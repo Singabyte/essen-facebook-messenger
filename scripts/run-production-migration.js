@@ -35,12 +35,22 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
+// For production environments with self-signed certificates (DigitalOcean)
+if (process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('digitalocean')) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 // PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? {
-    rejectUnauthorized: false
-  } : false
+    rejectUnauthorized: false,
+    require: true,
+    requestCert: false
+  } : false,
+  // Additional connection settings
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000
 });
 
 /**
