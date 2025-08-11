@@ -47,6 +47,9 @@ export const usersAPI = {
   getAll: (params) => api.get('/users', { params }),
   getById: (id) => api.get(`/users/${id}`),
   getConversations: (id, params) => api.get(`/users/${id}/conversations`, { params }),
+  toggleBotStatus: (id, enabled) => api.put(`/users/${id}/bot-status`, { enabled }),
+  sendMessage: (id, message) => api.post(`/users/${id}/send-message`, { message }),
+  getRealTimeConversation: (id, limit = 50) => api.get(`/users/${id}/real-time-conversation`, { params: { limit } }),
 }
 
 // Conversations API

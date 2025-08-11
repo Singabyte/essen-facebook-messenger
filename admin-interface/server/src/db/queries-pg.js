@@ -15,6 +15,10 @@ const queries = {
           u.profile_pic,
           u.created_at,
           u.last_interaction,
+          u.bot_enabled,
+          u.admin_takeover,
+          u.admin_takeover_at,
+          u.admin_takeover_by,
           COUNT(DISTINCT c.id) as conversation_count
         FROM users u
         LEFT JOIN conversations c ON u.id = c.user_id
@@ -55,6 +59,39 @@ const queries = {
     getById: async (id) => {
       const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
       return result.rows[0];
+    },
+    
+    // Toggle bot enabled status for a user
+    toggleBotStatus: async (userId, enabled, adminId = null) => {
+      const query = `
+        UPDATE users 
+        SET 
+          bot_enabled = $2,
+          admin_takeover = $3,
+          admin_takeover_at = $4,
+          admin_takeover_by = $5
+        WHERE id = $1
+        RETURNING *
+      `;
+      
+      const result = await pool.query(query, [
+        userId,
+        enabled,
+        !enabled, // admin_takeover is opposite of bot_enabled
+        !enabled ? new Date() : null,
+        !enabled ? adminId : null
+      ]);
+      
+      return result.rows[0];
+    },
+    
+    // Get bot status for a user by Facebook ID
+    getBotStatus: async (facebookId) => {
+      const result = await pool.query(
+        'SELECT bot_enabled, admin_takeover FROM users WHERE id = $1',
+        [facebookId]
+      );
+      return result.rows[0] || { bot_enabled: true, admin_takeover: false };
     }
   },
   
@@ -109,6 +146,50 @@ const queries = {
         conversations: result.rows,
         total: parseInt(countResult.rows[0]?.total || 0)
       };
+    },
+    
+    // Save an admin message to conversations
+    saveAdminMessage: async (userId, message, response, adminId) => {
+      const query = `
+        INSERT INTO conversations (
+          user_id, 
+          message, 
+          response, 
+          timestamp, 
+          is_from_user,
+          is_admin_message,
+          admin_id
+        ) VALUES ($1, $2, $3, NOW(), $4, true, $5)
+        RETURNING *
+      `;
+      
+      const result = await pool.query(query, [
+        userId,
+        message,
+        response || '',
+        false, // is_from_user = false for admin messages
+        adminId
+      ]);
+      
+      return result.rows[0];
+    },
+    
+    // Get real-time conversation for a user
+    getRealTimeConversation: async (userId, limit = 50) => {
+      const query = `
+        SELECT 
+          c.*,
+          u.name as user_name,
+          u.profile_pic
+        FROM conversations c
+        LEFT JOIN users u ON c.user_id = u.id
+        WHERE c.user_id = $1
+        ORDER BY c.timestamp DESC
+        LIMIT $2
+      `;
+      
+      const result = await pool.query(query, [userId, limit]);
+      return result.rows.reverse(); // Return in chronological order
     },
     
     search: async (searchTerm, limit = 20, offset = 0) => {

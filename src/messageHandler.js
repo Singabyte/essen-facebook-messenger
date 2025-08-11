@@ -112,6 +112,28 @@ async function handleMessage(event) {
     return;
   }
   
+  // Check if bot is enabled for this user
+  try {
+    const botStatus = await db.getBotStatusForUser(senderId);
+    if (!botStatus.bot_enabled || botStatus.admin_takeover) {
+      console.log(`Bot disabled for user ${senderId} - admin takeover active`);
+      // Still save the message to database for admin to see
+      await db.saveConversation(senderId, messageText || '[Image]', '', true);
+      // Emit to admin interface via WebSocket if connected
+      if (global.adminSocketClient) {
+        global.adminSocketClient.emit('user-message-while-disabled', {
+          user_id: senderId,
+          message: messageText || '[Image]',
+          timestamp: new Date()
+        });
+      }
+      return; // Don't process with bot
+    }
+  } catch (error) {
+    console.error('Error checking bot status:', error);
+    // Continue processing if we can't check status
+  }
+  
   // Extract image URLs from attachments
   let imageUrls = [];
   if (messageAttachments) {

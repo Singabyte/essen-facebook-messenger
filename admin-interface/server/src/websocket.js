@@ -89,6 +89,33 @@ const initializeWebSocket = (server) => {
         });
       }
     });
+    
+    // Join user-specific room for real-time messaging
+    socket.on('join-user-room', (userId) => {
+      socket.join(`user-${userId}`);
+      console.log(`Admin ${socket.username} joined user room: user-${userId}`);
+    });
+    
+    // Leave user-specific room
+    socket.on('leave-user-room', (userId) => {
+      socket.leave(`user-${userId}`);
+      console.log(`Admin ${socket.username} left user room: user-${userId}`);
+    });
+    
+    // Handle admin sending message to user
+    socket.on('send-message-to-user', async (data) => {
+      const { userId, message } = data;
+      console.log(`Admin ${socket.username} sending message to user ${userId}`);
+      
+      // Broadcast to other admins watching this conversation
+      socket.to(`user-${userId}`).emit('admin-message', {
+        userId,
+        message,
+        adminId: socket.userId,
+        adminUsername: socket.username,
+        timestamp: new Date()
+      });
+    });
   });
 
   // Create a separate namespace for bot connections (no auth required)
@@ -282,6 +309,8 @@ const botEventHandlers = {
   newConversation: (conversationData) => {
     emitToAdmins('conversation:new', conversationData);
     emitToRoom('conversations', 'conversation:new', conversationData);
+    // Also emit to user-specific room for real-time messaging
+    emitToRoom(`user-${conversationData.user_id}`, 'new-message', conversationData);
   },
 
   newUser: (userData) => {

@@ -14,9 +14,20 @@ import {
   Grid,
   Paper,
   Button,
+  IconButton,
+  Drawer,
+  Switch,
+  Tooltip,
 } from '@mui/material'
-import { Person, Message } from '@mui/icons-material'
+import { 
+  Person, 
+  Message, 
+  Chat as ChatIcon,
+  SmartToy as BotIcon,
+  Close as CloseIcon 
+} from '@mui/icons-material'
 import DataTable from '../components/DataTable'
+import MessengerChat from '../components/MessengerChat'
 import { usersAPI } from '../services/api'
 import { format } from 'date-fns'
 
@@ -29,6 +40,8 @@ function Users() {
   const [selectedUser, setSelectedUser] = useState(null)
   const [userDialogOpen, setUserDialogOpen] = useState(false)
   const [conversations, setConversations] = useState([])
+  const [chatDrawerOpen, setChatDrawerOpen] = useState(false)
+  const [chatUser, setChatUser] = useState(null)
 
   useEffect(() => {
     fetchUsers()
@@ -85,6 +98,31 @@ function Users() {
     console.log('Export users to CSV')
   }
 
+  const handleOpenChat = (user) => {
+    setChatUser(user);
+    setChatDrawerOpen(true);
+  };
+
+  const handleCloseChat = () => {
+    setChatDrawerOpen(false);
+    setTimeout(() => setChatUser(null), 300); // Clear user after drawer animation
+  };
+
+  const handleToggleBotStatus = async (user, event) => {
+    event.stopPropagation();
+    try {
+      const newStatus = !user.bot_enabled;
+      await usersAPI.toggleBotStatus(user.id, newStatus);
+      
+      // Update local state
+      setUsers(prev => prev.map(u => 
+        u.id === user.id ? { ...u, bot_enabled: newStatus } : u
+      ));
+    } catch (error) {
+      console.error('Error toggling bot status:', error);
+    }
+  };
+
   const columns = [
     {
       field: 'id',
@@ -115,6 +153,43 @@ function Users() {
       headerName: 'Last Active',
       minWidth: 180,
       type: 'date',
+    },
+    {
+      field: 'bot_enabled',
+      headerName: 'Bot Status',
+      minWidth: 120,
+      render: (value, row) => (
+        <Tooltip title={value !== false ? 'Bot is responding' : 'Admin takeover active'}>
+          <Switch
+            checked={value !== false}
+            onClick={(e) => handleToggleBotStatus(row, e)}
+            color="primary"
+            size="small"
+          />
+        </Tooltip>
+      ),
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      minWidth: 120,
+      sortable: false,
+      render: (value, row) => (
+        <Box>
+          <Tooltip title="Open Chat">
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenChat(row);
+              }}
+            >
+              <ChatIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
     },
   ]
 
@@ -253,6 +328,43 @@ function Users() {
           </Grid>
         </DialogContent>
       </Dialog>
+
+      {/* Messenger Chat Drawer */}
+      <Drawer
+        anchor="right"
+        open={chatDrawerOpen}
+        onClose={handleCloseChat}
+        PaperProps={{
+          sx: { 
+            width: { xs: '100%', sm: 600, md: 700 },
+            p: 0
+          }
+        }}
+      >
+        <Box sx={{ 
+          height: '100vh', 
+          display: 'flex', 
+          flexDirection: 'column',
+          position: 'relative'
+        }}>
+          <Box sx={{ 
+            position: 'absolute', 
+            top: 8, 
+            right: 8, 
+            zIndex: 1 
+          }}>
+            <IconButton onClick={handleCloseChat}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          {chatUser && (
+            <MessengerChat 
+              user={chatUser} 
+              onClose={handleCloseChat}
+            />
+          )}
+        </Box>
+      </Drawer>
     </Container>
   )
 }
