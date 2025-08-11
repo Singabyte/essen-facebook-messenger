@@ -558,6 +558,40 @@ const queries = {
         };
       }
     }
+  },
+
+  // Admin user queries
+  admin: {
+    createUser: async (username, hashedPassword) => {
+      const result = await pool.query(
+        'INSERT INTO admin_users (username, password) VALUES ($1, $2) RETURNING id',
+        [username, hashedPassword]
+      );
+      return result.rows[0];
+    },
+    
+    findByUsername: async (username) => {
+      const result = await pool.query(
+        'SELECT * FROM admin_users WHERE username = $1',
+        [username]
+      );
+      return result.rows[0];
+    },
+    
+    updateLastLogin: async (userId) => {
+      const result = await pool.query(
+        'UPDATE admin_users SET last_login = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+        [userId]
+      );
+      return result.rows[0];
+    },
+    
+    getAdminUsers: async () => {
+      const result = await pool.query(
+        'SELECT id, username, created_at, last_login FROM admin_users ORDER BY created_at DESC'
+      );
+      return result.rows;
+    }
   }
 };
 
