@@ -2,6 +2,7 @@ import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import { AuthProvider } from './context/AuthContext'
+import { SocketProvider } from './context/SocketContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -19,30 +20,32 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Box sx={{ display: 'flex' }}>
-          <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/users" element={<Users />} />
-                    <Route path="/conversations" element={<Conversations />} />
-                    <Route path="/appointments" element={<Appointments />} />
-                    <Route path="/knowledge-base" element={<KnowledgeBase />} />
-                    <Route path="/analytics" element={<Analytics />} />
-                    <Route path="/monitoring" element={<Monitoring />} />
-                    <Route path="/settings" element={<Settings />} />
-                  </Routes>
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          </Routes>
-        </Box>
+        <SocketProvider>
+          <Box sx={{ display: 'flex' }}>
+            <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/users" element={<Users />} />
+                      <Route path="/conversations" element={<Conversations />} />
+                      <Route path="/appointments" element={<Appointments />} />
+                      <Route path="/knowledge-base" element={<KnowledgeBase />} />
+                      <Route path="/analytics" element={<Analytics />} />
+                      <Route path="/monitoring" element={<Monitoring />} />
+                      <Route path="/settings" element={<Settings />} />
+                    </Routes>
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            </Routes>
+          </Box>
+        </SocketProvider>
       </AuthProvider>
     </ErrorBoundary>
   )
