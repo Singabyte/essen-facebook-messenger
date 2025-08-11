@@ -4,6 +4,9 @@ const { generateResponseWithHistory, generateResponseWithHistoryAndImages } = re
 
 const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 
+// Cache for user profiles to avoid repeated API calls
+const userProfileCache = new Map();
+
 // In-memory cache for deduplication
 const recentMessages = new Map(); // Map of senderId -> { messageText, timestamp }
 const processedMessageIds = new Set(); // Set of processed message IDs
@@ -11,6 +14,59 @@ const DEDUP_WINDOW_MS = 5000; // 5 second window
 
 // Utility function for delays
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Fetch user profile from Facebook Graph API
+async function getUserProfile(userId) {
+  try {
+    // Check cache first
+    if (userProfileCache.has(userId)) {
+      const cached = userProfileCache.get(userId);
+      // Cache for 24 hours
+      if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
+        return cached.data;
+      }
+    }
+    
+    console.log(`Fetching profile for user ${userId} from Facebook API`);
+    
+    const response = await axios.get(
+      `${FACEBOOK_API_URL}/${userId}`,
+      {
+        params: {
+          fields: 'first_name,last_name,profile_pic,locale,timezone',
+          access_token: process.env.PAGE_ACCESS_TOKEN
+        }
+      }
+    );
+    
+    const profileData = {
+      name: `${response.data.first_name || ''} ${response.data.last_name || ''}`.trim() || 'User',
+      first_name: response.data.first_name,
+      last_name: response.data.last_name,
+      profile_pic: response.data.profile_pic,
+      locale: response.data.locale,
+      timezone: response.data.timezone
+    };
+    
+    // Cache the profile
+    userProfileCache.set(userId, {
+      data: profileData,
+      timestamp: Date.now()
+    });
+    
+    console.log(`Profile fetched for ${profileData.name}`);
+    return profileData;
+    
+  } catch (error) {
+    console.error('Error fetching user profile:', error.response?.data || error.message);
+    
+    // Return default data if API call fails
+    return {
+      name: 'User',
+      profile_pic: null
+    };
+  }
+}
 
 // Send typing indicator function
 async function sendTypingIndicator(recipientId, isTyping = true) {
@@ -191,8 +247,9 @@ async function handleMessage(event) {
   }
   
   try {
-    // Save user if new
-    await db.saveUser(senderId, { name: 'User' });
+    // Fetch and save user profile
+    const userProfile = await getUserProfile(senderId);
+    await db.saveUser(senderId, userProfile);
     
     // Get conversation history
     const history = await db.getConversationHistory(senderId, 15);
