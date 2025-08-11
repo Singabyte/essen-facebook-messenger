@@ -102,7 +102,14 @@ const queries = {
       
       let query = `
         SELECT 
-          c.*,
+          c.id,
+          c.user_id,
+          c.message,
+          c.response,
+          c.timestamp,
+          COALESCE(c.is_from_user, true) as is_from_user,
+          COALESCE(c.is_admin_message, false) as is_admin_message,
+          c.admin_id,
           u.name as user_name,
           u.profile_pic
         FROM conversations c
@@ -131,7 +138,7 @@ const queries = {
       // Get total count
       const countParams = [...params];
       const countQuery = query.replace(
-        'SELECT c.*, u.name as user_name, u.profile_pic FROM conversations c LEFT JOIN users u ON c.user_id = u.id',
+        /SELECT[\s\S]+?FROM conversations c/,
         'SELECT COUNT(*) as total FROM conversations c'
       );
       const countResult = await pool.query(countQuery, countParams);
@@ -203,7 +210,14 @@ const queries = {
     search: async (searchTerm, limit = 20, offset = 0) => {
       const query = `
         SELECT 
-          c.*,
+          c.id,
+          c.user_id,
+          c.message,
+          c.response,
+          c.timestamp,
+          COALESCE(c.is_from_user, true) as is_from_user,
+          COALESCE(c.is_admin_message, false) as is_admin_message,
+          c.admin_id,
           u.name as user_name,
           u.profile_pic
         FROM conversations c

@@ -17,14 +17,14 @@ services:
     branch: main
     deploy_on_push: true
     repo: Singabyte/essen-facebook-messenger
-  build_command: npm install && echo "Build completed successfully" && npm run test:unit && npm run db:init || echo "DB init completed with warnings"
+  build_command: npm install && npm run test:unit && npm run db:init || echo "DB init completed with warnings"
   run_command: node src/index.js
   http_port: 3000
   instance_count: 1
-  instance_size_slug: basic-xs
+  instance_size_slug: basic-xxs
   routes:
   - path: /
-  # Auto-scaling configuration for handling increased load
+  # Auto-scaling configuration
   autoscaling:
     min_instance_count: 1
     max_instance_count: 3
@@ -46,12 +46,16 @@ services:
     value: production
   - key: PAGE_ACCESS_TOKEN
     type: SECRET
+    value: "YOUR_PAGE_ACCESS_TOKEN_HERE"
   - key: VERIFY_TOKEN
     type: SECRET
+    value: "YOUR_VERIFY_TOKEN_HERE"
   - key: APP_SECRET
     type: SECRET
+    value: "YOUR_APP_SECRET_HERE"
   - key: GEMINI_API_KEY
     type: SECRET
+    value: "YOUR_GEMINI_API_KEY_HERE"
   - key: DATABASE_URL
     value: "${db.DATABASE_URL}"
   - key: PORT
@@ -91,7 +95,7 @@ services:
   run_command: node src/index.js
   http_port: 4000
   instance_count: 1
-  instance_size_slug: basic-xs
+  instance_size_slug: basic-xxs
   routes:
   - path: /api
   # Health check for admin API
@@ -107,6 +111,7 @@ services:
     value: production
   - key: JWT_SECRET
     type: SECRET
+    value: "YOUR_JWT_SECRET_HERE"
   - key: DATABASE_URL
     value: "${db.DATABASE_URL}"
   - key: PORT

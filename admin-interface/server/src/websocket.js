@@ -19,24 +19,34 @@ const resetDailyCounters = () => {
 
 const initializeWebSocket = (server) => {
   // Configure Socket.io with proper path handling
-  // In production, DigitalOcean strips /api prefix, so Socket.io should use /socket.io/
+  // In production, DigitalOcean routes /api/* to admin-api service
+  // The client connects with /api/socket.io/ but DigitalOcean strips the /api prefix
+  // So the server should still use /socket.io/
   const socketPath = '/socket.io/';
   
   io = new Server(server, {
     cors: {
       origin: process.env.NODE_ENV === 'production' 
-        ? ['https://essen-messenger-bot-zxxtw.ondigitalocean.app', 'https://*.ondigitalocean.app']
+        ? [
+            'https://essen-messenger-bot-zxxtw.ondigitalocean.app',
+            'https://*.ondigitalocean.app',
+            process.env.FRONTEND_URL,
+            process.env.APP_URL
+          ].filter(Boolean)
         : ['http://localhost:5173', 'http://localhost:3000'],
       credentials: true,
-      methods: ['GET', 'POST']
+      methods: ['GET', 'POST'],
+      allowedHeaders: ['content-type', 'authorization']
     },
     path: socketPath,
     // Allow Socket.io to serve its client files
     serveClient: true,
     // Add trailing slash handling
-    addTrailingSlash: true,
+    addTrailingSlash: false,
     // Configure transports
-    transports: ['polling', 'websocket']
+    transports: ['polling', 'websocket'],
+    // Allow EIO3 and EIO4 clients
+    allowEIO3: true
   });
   
   console.log(`Socket.io initialized with path: ${socketPath}`);

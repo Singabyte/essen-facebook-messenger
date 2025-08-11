@@ -1,27 +1,13 @@
-const { Pool } = require('pg');
-
-// PostgreSQL connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? {
-    rejectUnauthorized: false
-  } : false,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000
-});
-
-// Handle pool errors
-pool.on('error', (err) => {
-  console.error('Database pool error:', err);
-});
+// Use the centralized database configuration
+const { pool, testConnection } = require('./db-config');
 
 // Initialize database tables
 async function initDatabase() {
   try {
-    // Test connection
-    const testResult = await pool.query('SELECT NOW() as now');
-    console.log('Connected to PostgreSQL database at:', testResult.rows[0].now);
+    console.log('Initializing database...');
+    
+    // Test connection first
+    await testConnection();
     
     // Users table
     await pool.query(`

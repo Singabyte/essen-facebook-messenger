@@ -21,17 +21,31 @@ export const SocketProvider = ({ children }) => {
     }
 
     // Determine the socket URL based on environment
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || 
-                     import.meta.env.VITE_API_URL?.replace('/api', '') || 
-                     'http://localhost:4000';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const isProduction = apiUrl.includes('ondigitalocean.app');
+    
+    // In production, we need to use the full URL with /api path
+    // In development, we connect directly to the server
+    const socketUrl = isProduction 
+      ? apiUrl.replace('/api', '') // Base URL for production
+      : 'http://localhost:4000';
+    
+    // Configure Socket.io path based on environment
+    // In production, DigitalOcean routes /api/* to the admin-api service
+    const socketPath = isProduction ? '/api/socket.io/' : '/socket.io/';
 
-    console.log('Connecting to socket server at:', socketUrl);
+    console.log('Connecting to socket server:', {
+      url: socketUrl,
+      path: socketPath,
+      environment: isProduction ? 'production' : 'development'
+    });
 
     // Create socket connection with authentication
     const newSocket = io(socketUrl, {
       auth: {
         token: token
       },
+      path: socketPath,
       transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
