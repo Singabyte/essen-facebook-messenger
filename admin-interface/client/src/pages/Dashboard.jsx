@@ -29,8 +29,7 @@ function Dashboard() {
   const [conversationStats, setConversationStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
   const [realtimeStats, setRealtimeStats] = useState({
-    todayConversations: 0,
-    totalAppointments: 0
+    todayConversations: 0
   })
   
   const { data: analytics, loading: analyticsLoading, refetch } = useAnalytics()
@@ -62,8 +61,7 @@ function Dashboard() {
     // Initialize realtime stats from fetched data
     if (analytics && conversationStats) {
       setRealtimeStats({
-        todayConversations: conversationStats.todayConversations || 0,
-        totalAppointments: analytics.overview?.totalAppointments || 0
+        todayConversations: conversationStats.todayConversations || 0
       })
     }
   }, [analytics, conversationStats])
@@ -129,15 +127,6 @@ function Dashboard() {
               value={realtimeStats.todayConversations}
               icon={<Chat />}
               loading={statsLoading}
-              realtime
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Total Appointments"
-              value={realtimeStats.totalAppointments}
-              icon={<EventNote />}
-              loading={analyticsLoading}
               realtime
             />
           </Grid>

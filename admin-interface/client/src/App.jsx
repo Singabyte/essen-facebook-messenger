@@ -8,7 +8,6 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Conversations from './pages/Conversations'
-import Appointments from './pages/Appointments'
 import Analytics from './pages/Analytics'
 import Monitoring from './pages/Monitoring'
 import KnowledgeBase from './pages/KnowledgeBase'
@@ -33,7 +32,6 @@ function App() {
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/users" element={<Users />} />
                       <Route path="/conversations" element={<Conversations />} />
-                      <Route path="/appointments" element={<Appointments />} />
                       <Route path="/knowledge-base" element={<KnowledgeBase />} />
                       <Route path="/analytics" element={<Analytics />} />
                       <Route path="/monitoring" element={<Monitoring />} />

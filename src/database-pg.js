@@ -31,20 +31,6 @@ async function initDatabase() {
       )
     `);
     
-    // Appointments table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS appointments (
-        id SERIAL PRIMARY KEY,
-        user_id TEXT REFERENCES users(id),
-        facebook_name TEXT,
-        appointment_date TEXT,
-        appointment_time TEXT,
-        phone_number TEXT,
-        message TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    
     console.log('Database tables initialized');
   } catch (error) {
     console.error('Database initialization error:', error);
@@ -110,21 +96,6 @@ const db = {
     } catch (err) {
       console.error('Error getting conversation history:', err);
       return [];
-    }
-  },
-
-  // Save appointment
-  saveAppointment: async (userId, fbName, date, time, phone) => {
-    try {
-      const query = `
-        INSERT INTO appointments (user_id, facebook_name, appointment_date, appointment_time, phone_number, message)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `;
-      const message = `Appointment request: ${date} at ${time}`;
-      await pool.query(query, [userId, fbName, date, time, phone || null, message]);
-      console.log('Appointment saved successfully');
-    } catch (err) {
-      console.error('Error saving appointment:', err);
     }
   },
   

@@ -353,11 +353,8 @@ const queries = {
           total_users: 0,
           engaged_users: 0,
           product_inquiry_users: 0,
-          appointment_users: 0,
-          confirmed_appointment_users: 0,
           engagement_rate: 0,
           inquiry_rate: 0,
-          appointment_rate: 0,
           confirmation_rate: 0
         };
       }
@@ -397,47 +394,6 @@ const queries = {
       return result.rows;
     },
 
-    getAppointmentAnalytics: async (days = 30) => {
-      const result = await pool.query(`
-        WITH appointment_stats AS (
-          SELECT 
-            DATE_TRUNC('day', created_at) as date,
-            COUNT(*) as appointments,
-            array_agg(appointment_time) as times
-          FROM appointments
-          WHERE created_at >= CURRENT_DATE - INTERVAL '${days} days'
-          GROUP BY DATE_TRUNC('day', created_at)
-        ),
-        hourly_preferences AS (
-          SELECT 
-            EXTRACT(HOUR FROM created_at::timestamp) as hour,
-            COUNT(*) as bookings
-          FROM appointments
-          WHERE created_at >= CURRENT_DATE - INTERVAL '${days} days'
-          GROUP BY EXTRACT(HOUR FROM created_at::timestamp)
-          ORDER BY bookings DESC
-        ),
-        conversion_stats AS (
-          SELECT 
-            COUNT(DISTINCT c.user_id) as total_users,
-            COUNT(DISTINCT a.user_id) as converted_users,
-            ROUND(COUNT(DISTINCT a.user_id) * 100.0 / NULLIF(COUNT(DISTINCT c.user_id), 0), 2) as conversion_rate
-          FROM conversations c
-          LEFT JOIN appointments a ON c.user_id = a.user_id
-          WHERE c.timestamp >= CURRENT_DATE - INTERVAL '${days} days'
-        )
-        SELECT 
-          json_build_object(
-            'daily_stats', (SELECT json_agg(row_to_json(appointment_stats)) FROM appointment_stats),
-            'peak_hours', (SELECT json_agg(row_to_json(hourly_preferences)) FROM hourly_preferences),
-            'total_appointments', (SELECT COUNT(*) FROM appointments WHERE created_at >= CURRENT_DATE - INTERVAL '${days} days'),
-            'conversion_stats', (SELECT row_to_json(conversion_stats) FROM conversion_stats)
-          ) as analytics
-      `);
-      
-      return result.rows[0]?.analytics || {};
-    },
-
     getPeakUsageHours: async (days = 30) => {
       const result = await pool.query(`
         SELECT 
@@ -461,8 +417,7 @@ const queries = {
             COUNT(*) as total_messages,
             BOOL_OR(message ILIKE '%thank%' OR message ILIKE '%great%' OR message ILIKE '%helpful%') as positive_feedback,
             BOOL_OR(message ILIKE '%problem%' OR message ILIKE '%issue%' OR message ILIKE '%not work%') as negative_feedback,
-            COUNT(*) FILTER (WHERE message LIKE '/%help%') as help_requests,
-            EXISTS(SELECT 1 FROM appointments a WHERE a.user_id = c.user_id) as booked_appointment
+            COUNT(*) FILTER (WHERE message LIKE '/%help%') as help_requests
           FROM conversations c
           WHERE timestamp >= CURRENT_DATE - INTERVAL '${days} days'
           GROUP BY user_id
@@ -471,7 +426,6 @@ const queries = {
           COUNT(*) as total_users,
           COUNT(*) FILTER (WHERE positive_feedback) as positive_users,
           COUNT(*) FILTER (WHERE negative_feedback) as negative_users,
-          COUNT(*) FILTER (WHERE booked_appointment) as converted_users,
           AVG(total_messages) as avg_messages_per_user,
           AVG(help_requests) as avg_help_requests,
           ROUND(COUNT(*) FILTER (WHERE positive_feedback) * 100.0 / COUNT(*), 2) as satisfaction_rate

@@ -148,8 +148,6 @@ SELECT
     COUNT(*) as user_count,
     AVG(total_conversations) as avg_conversations,
     AVG(total_messages) as avg_messages,
-    AVG(total_appointments) as avg_appointments,
-    AVG(confirmed_appointments) as avg_confirmed_appointments,
     AVG(engagement_score) as avg_engagement_score,
     MIN(first_interaction) as earliest_user,
     MAX(last_interaction) as most_recent_activity
@@ -281,20 +279,11 @@ conversation_metrics AS (
     FROM conversations
     WHERE created_at >= now() - interval '24 hours'
 ),
-appointment_metrics AS (
-    SELECT 
-        COUNT(*) as appointments_24h,
-        COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed_24h,
-        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_24h
-    FROM appointments
-    WHERE created_at >= now() - interval '24 hours'
-)
 SELECT 
     jsonb_build_object(
         'system_health', (SELECT jsonb_agg(row_to_json(s)) FROM system_metrics s),
         'database_performance', (SELECT row_to_json(d) FROM database_metrics d),
         'conversation_metrics', (SELECT row_to_json(c) FROM conversation_metrics c),
-        'appointment_metrics', (SELECT row_to_json(a) FROM appointment_metrics a),
         'timestamp', now()
     ) as dashboard_data;
 

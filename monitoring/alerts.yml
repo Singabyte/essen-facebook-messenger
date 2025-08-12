@@ -165,16 +165,6 @@ groups:
           summary: "Low conversation engagement rate"
           description: "Conversation success rate is {{ $value }}, below 70% threshold"
 
-      - alert: HighAppointmentCancellationRate
-        expr: rate(appointments_cancelled_total[4h]) / rate(appointments_created_total[4h]) > 0.2
-        for: 15m
-        labels:
-          severity: warning
-          service: business-metrics
-          environment: production
-        annotations:
-          summary: "High appointment cancellation rate"
-          description: "Appointment cancellation rate is {{ $value }}, above 20% threshold"
 
       - alert: NoMessagesReceived
         expr: rate(facebook_messages_received_total[10m]) == 0

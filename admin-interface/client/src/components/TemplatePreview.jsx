@@ -116,7 +116,6 @@ function TemplatePreview({ template, variables = {}, onClose, onVariableChange }
     setTimeout(() => {
       const responses = {
         'more_info': 'Here\'s more information about our products...',
-        'book_appointment': 'Great! Let me help you book an appointment.',
         'contact': 'You can reach us at +65 6XXX XXXX',
         'showroom': 'Our showroom is located at...',
         'default': 'Thank you for your selection!'
@@ -344,12 +343,6 @@ function TemplatePreview({ template, variables = {}, onClose, onVariableChange }
             onClick={() => handleQuickReply({ title: 'More Info', payload: 'more_info' })}
           >
             Simulate "More Info"
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => handleQuickReply({ title: 'Book Appointment', payload: 'book_appointment' })}
-          >
-            Simulate "Book Appointment"
           </Button>
         </Box>
       </Box>

@@ -310,41 +310,6 @@ async function handleMessage(event) {
   }
 }
 
-
-// Simple appointment handler - COMMENTED OUT FOR NOW
-// async function handleAppointmentBooking(senderId, messageText) {
-//   // Look for date and time patterns
-//   const timeMatch = messageText.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm))/i);
-//   const hasDate = /tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}[\/-]\d{1,2}/i.test(messageText);
-//   
-//   if (timeMatch && hasDate) {
-//     // Simple validation - check if within operating hours
-//     const time = timeMatch[0].toLowerCase();
-//     const hour = parseInt(time);
-//     const isPM = time.includes('pm');
-//     const adjustedHour = isPM && hour !== 12 ? hour + 12 : hour;
-//     
-//     if (adjustedHour < 11 || adjustedHour >= 19) {
-//       return `Our showroom is open 11am-7pm daily. Please choose a time within these hours.`;
-//     }
-//     
-//     // Simple appointment confirmation
-//     await db.saveAppointment(senderId, 'User', messageText, time, null);
-//     
-//     return `Great! I've noted your appointment request. Our team will confirm shortly.
-// 📍 Location: 36 Jalan Kilang Barat
-// 📞 We'll call you to confirm, or you can call us at +65 6019 0775`;
-//   }
-//   
-//   // Prompt for details if not complete
-//   if (messageText.toLowerCase().includes('appointment') || messageText.toLowerCase().includes('book')) {
-//     return `I'd love to schedule your visit! When would you like to come? 
-// We're open 11am-7pm daily. Just tell me your preferred date and time.`;
-//   }
-//   
-//   return null; // Not appointment related
-// }
-
 // Handle postback events (button clicks)
 async function handlePostback(event) {
   const senderId = event.sender.id;

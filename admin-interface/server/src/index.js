@@ -307,8 +307,6 @@ app.use('/users', require('./routes/users'));
 app.use('/api/users', require('./routes/users'));
 app.use('/conversations', require('./routes/conversations'));
 app.use('/api/conversations', require('./routes/conversations'));
-app.use('/appointments', require('./routes/appointments'));
-app.use('/api/appointments', require('./routes/appointments'));
 app.use('/analytics', require('./routes/analytics'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/knowledge-base', require('./routes/knowledge-base'));
@@ -333,7 +331,6 @@ app.get('/', (req, res) => {
       auth: '/auth/login',
       users: '/users',
       conversations: '/conversations',
-      appointments: '/appointments',
       analytics: '/analytics',
       knowledgeBase: '/knowledge-base',
       templates: '/templates',

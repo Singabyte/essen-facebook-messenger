@@ -49,9 +49,6 @@ CREATE TABLE IF NOT EXISTS analytics.business_metrics_daily (
     active_users INTEGER DEFAULT 0,
     total_conversations INTEGER DEFAULT 0,
     successful_conversations INTEGER DEFAULT 0,
-    total_appointments INTEGER DEFAULT 0,
-    confirmed_appointments INTEGER DEFAULT 0,
-    cancelled_appointments INTEGER DEFAULT 0,
     avg_conversation_length NUMERIC(10,2),
     avg_response_time_ms INTEGER,
     total_messages INTEGER DEFAULT 0,
@@ -70,8 +67,7 @@ CREATE TABLE IF NOT EXISTS analytics.product_inquiries (
     user_id INTEGER REFERENCES users(id),
     conversation_id INTEGER REFERENCES conversations(id),
     inquiry_type VARCHAR(50),
-    inquiry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    led_to_appointment BOOLEAN DEFAULT FALSE
+    inquiry_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- User engagement patterns
@@ -82,8 +78,6 @@ CREATE TABLE IF NOT EXISTS analytics.user_engagement (
     last_interaction TIMESTAMP,
     total_conversations INTEGER DEFAULT 0,
     total_messages INTEGER DEFAULT 0,
-    total_appointments INTEGER DEFAULT 0,
-    confirmed_appointments INTEGER DEFAULT 0,
     favorite_products JSONB DEFAULT '[]',
     engagement_score NUMERIC(5,2),
     customer_segment VARCHAR(50),
@@ -134,16 +128,11 @@ SELECT
     COUNT(DISTINCT u.id) as total_users,
     COUNT(DISTINCT CASE WHEN ue.total_conversations > 0 THEN u.id END) as engaged_users,
     COUNT(DISTINCT CASE WHEN pi.id IS NOT NULL THEN u.id END) as product_inquiry_users,
-    COUNT(DISTINCT CASE WHEN a.id IS NOT NULL THEN u.id END) as appointment_users,
-    COUNT(DISTINCT CASE WHEN a.status = 'confirmed' THEN u.id END) as confirmed_appointment_users,
     ROUND(COUNT(DISTINCT CASE WHEN ue.total_conversations > 0 THEN u.id END)::numeric / NULLIF(COUNT(DISTINCT u.id), 0) * 100, 2) as engagement_rate,
-    ROUND(COUNT(DISTINCT CASE WHEN pi.id IS NOT NULL THEN u.id END)::numeric / NULLIF(COUNT(DISTINCT CASE WHEN ue.total_conversations > 0 THEN u.id END), 0) * 100, 2) as inquiry_rate,
-    ROUND(COUNT(DISTINCT CASE WHEN a.id IS NOT NULL THEN u.id END)::numeric / NULLIF(COUNT(DISTINCT CASE WHEN pi.id IS NOT NULL THEN u.id END), 0) * 100, 2) as appointment_rate,
-    ROUND(COUNT(DISTINCT CASE WHEN a.status = 'confirmed' THEN u.id END)::numeric / NULLIF(COUNT(DISTINCT CASE WHEN a.id IS NOT NULL THEN u.id END), 0) * 100, 2) as confirmation_rate
+    ROUND(COUNT(DISTINCT CASE WHEN pi.id IS NOT NULL THEN u.id END)::numeric / NULLIF(COUNT(DISTINCT CASE WHEN ue.total_conversations > 0 THEN u.id END), 0) * 100, 2) as inquiry_rate
 FROM users u
 LEFT JOIN analytics.user_engagement ue ON u.id = ue.user_id
 LEFT JOIN analytics.product_inquiries pi ON u.id = pi.user_id
-LEFT JOIN appointments a ON u.id = a.user_id
 WHERE u.created_at >= CURRENT_DATE - INTERVAL '30 days';
 
 -- Create view for product trend analysis
@@ -153,8 +142,6 @@ SELECT
     pi.product_category,
     COUNT(*) as inquiry_count,
     COUNT(DISTINCT pi.user_id) as unique_users,
-    COUNT(CASE WHEN pi.led_to_appointment THEN 1 END) as appointments_generated,
-    ROUND(COUNT(CASE WHEN pi.led_to_appointment THEN 1 END)::numeric / NULLIF(COUNT(*), 0) * 100, 2) as conversion_rate,
     date_trunc('day', MIN(pi.inquiry_timestamp)) as first_inquiry,
     date_trunc('day', MAX(pi.inquiry_timestamp)) as last_inquiry,
     CASE 
@@ -178,9 +165,6 @@ BEGIN
         active_users,
         total_conversations,
         successful_conversations,
-        total_appointments,
-        confirmed_appointments,
-        cancelled_appointments,
         avg_conversation_length,
         avg_response_time_ms,
         total_messages,
@@ -196,9 +180,6 @@ BEGIN
         COUNT(DISTINCT CASE WHEN c.created_at::date = CURRENT_DATE - INTERVAL '1 day' THEN c.user_id END),
         COUNT(DISTINCT ca.conversation_id),
         COUNT(DISTINCT CASE WHEN ca.outcome = 'successful' THEN ca.conversation_id END),
-        COUNT(DISTINCT a.id),
-        COUNT(DISTINCT CASE WHEN a.status = 'confirmed' THEN a.id END),
-        COUNT(DISTINCT CASE WHEN a.status = 'cancelled' THEN a.id END),
         AVG(ca.message_count),
         AVG(ca.avg_response_time_ms),
         COUNT(c.id),
@@ -223,7 +204,6 @@ BEGIN
     FROM users u
     LEFT JOIN conversations c ON u.id = c.user_id AND c.created_at::date = CURRENT_DATE - INTERVAL '1 day'
     LEFT JOIN analytics.conversation_analytics ca ON ca.start_time::date = CURRENT_DATE - INTERVAL '1 day'
-    LEFT JOIN appointments a ON a.created_at::date = CURRENT_DATE - INTERVAL '1 day'
     ON CONFLICT (metric_date) 
     DO UPDATE SET
         total_users = EXCLUDED.total_users,
@@ -231,9 +211,6 @@ BEGIN
         active_users = EXCLUDED.active_users,
         total_conversations = EXCLUDED.total_conversations,
         successful_conversations = EXCLUDED.successful_conversations,
-        total_appointments = EXCLUDED.total_appointments,
-        confirmed_appointments = EXCLUDED.confirmed_appointments,
-        cancelled_appointments = EXCLUDED.cancelled_appointments,
         avg_conversation_length = EXCLUDED.avg_conversation_length,
         avg_response_time_ms = EXCLUDED.avg_response_time_ms,
         total_messages = EXCLUDED.total_messages,
@@ -250,17 +227,14 @@ RETURNS void AS $$
 BEGIN
     UPDATE analytics.user_engagement
     SET customer_segment = CASE
-        WHEN confirmed_appointments > 0 THEN 'High Value'
-        WHEN total_appointments > 0 THEN 'Engaged'
+        WHEN total_conversations > 10 THEN 'High Value'
         WHEN total_conversations > 5 THEN 'Interested'
         WHEN total_conversations > 0 THEN 'Browsing'
         ELSE 'New'
     END,
     engagement_score = (
         (total_conversations * 1.0) +
-        (total_messages * 0.1) +
-        (total_appointments * 10.0) +
-        (confirmed_appointments * 20.0)
+        (total_messages * 0.1)
     ),
     last_updated = CURRENT_TIMESTAMP;
 END;

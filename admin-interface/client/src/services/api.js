@@ -59,13 +59,6 @@ export const conversationsAPI = {
   getStats: () => api.get('/conversations/stats'),
 }
 
-// Appointments API
-export const appointmentsAPI = {
-  getAll: (params) => api.get('/appointments', { params }),
-  getById: (id) => api.get(`/appointments/${id}`),
-  updateStatus: (id, status) => api.patch(`/appointments/${id}/status`, { status }),
-}
-
 // Analytics API
 export const analyticsAPI = {
   getOverview: (params) => api.get('/analytics/overview', { params }),
@@ -75,7 +68,6 @@ export const analyticsAPI = {
   getUserEngagement: (limit) => api.get('/analytics/user-engagement', { params: { limit } }),
   getConversionFunnel: () => api.get('/analytics/conversion-funnel'),
   getProductTrends: (days) => api.get('/analytics/product-trends', { params: { days } }),
-  getAppointmentAnalytics: (days) => api.get('/analytics/appointments', { params: { days } }),
   getPeakHours: (days) => api.get('/analytics/peak-hours', { params: { days } }),
   getSatisfaction: (days) => api.get('/analytics/satisfaction', { params: { days } }),
   getPerformance: (days) => api.get('/analytics/performance', { params: { days } }),

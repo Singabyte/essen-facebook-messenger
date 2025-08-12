@@ -39,7 +39,6 @@ const menuItems = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/' },
   { text: 'Users', icon: <People />, path: '/users' },
   { text: 'Conversations', icon: <Chat />, path: '/conversations' },
-  { text: 'Appointments', icon: <EventNote />, path: '/appointments' },
   { text: 'Knowledge Base', icon: <LibraryBooks />, path: '/knowledge-base' },
   { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
   { text: 'Monitoring', icon: <MonitorHeart />, path: '/monitoring' },

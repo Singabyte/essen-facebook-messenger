@@ -36,7 +36,6 @@ import {
   TrendingDown,
   People,
   Chat,
-  EventNote,
   Assessment,
   Download,
   Refresh,
@@ -135,7 +134,6 @@ function Analytics() {
     userEngagement: [],
     conversionFunnel: {},
     productTrends: [],
-    appointmentAnalytics: {},
     peakHours: [],
     satisfaction: {},
     performance: [],
@@ -194,16 +192,6 @@ function Analytics() {
       }));
     };
 
-    const handleAppointmentUpdate = (appointmentData) => {
-      // Update appointment count in real-time
-      setData(prev => ({
-        ...prev,
-        overview: {
-          ...prev.overview,
-          totalAppointments: (prev.overview.totalAppointments || 0) + 1
-        }
-      }));
-    };
 
     // Subscribe to real-time events
     on('analytics:realtime:update', handleRealtimeUpdate);
@@ -211,7 +199,6 @@ function Analytics() {
     on('performance:alert', handlePerformanceAlert);
     on('slow-query:detected', handleSlowQuery);
     on('business-metrics:update', handleBusinessMetricsUpdate);
-    on('appointment:analytics:update', handleAppointmentUpdate);
 
     return () => {
       // Cleanup event listeners
@@ -220,7 +207,6 @@ function Analytics() {
       off('performance:alert', handlePerformanceAlert);
       off('slow-query:detected', handleSlowQuery);
       off('business-metrics:update', handleBusinessMetricsUpdate);
-      off('appointment:analytics:update', handleAppointmentUpdate);
     };
   }, [on, off]);
 
@@ -233,7 +219,6 @@ function Analytics() {
         userEngagement,
         conversionFunnel,
         productTrends,
-        appointmentAnalytics,
         peakHours,
         satisfaction,
         performance,
@@ -245,7 +230,6 @@ function Analytics() {
         analyticsAPI.getUserEngagement(),
         analyticsAPI.getConversionFunnel(),
         analyticsAPI.getProductTrends(period),
-        analyticsAPI.getAppointmentAnalytics(period),
         analyticsAPI.getPeakHours(period),
         analyticsAPI.getSatisfaction(period),
         analyticsAPI.getPerformance(),
@@ -259,7 +243,6 @@ function Analytics() {
         userEngagement: userEngagement.data.users || [],
         conversionFunnel: conversionFunnel.data,
         productTrends: productTrends.data.trends || [],
-        appointmentAnalytics: appointmentAnalytics.data,
         peakHours: peakHours.data.hours || [],
         satisfaction: satisfaction.data,
         performance: performance.data.metrics || [],
@@ -300,8 +283,7 @@ function Analytics() {
     return [
       { name: 'Total Users', value: funnel.total_users || 0, fill: COLORS[0] },
       { name: 'Showed Interest', value: funnel.interested_users || 0, fill: COLORS[1] },
-      { name: 'Requested Consultation', value: funnel.consultation_requests || 0, fill: COLORS[2] },
-      { name: 'Booked Appointment', value: funnel.appointments_booked || 0, fill: COLORS[3] }
+      { name: 'Requested Consultation', value: funnel.consultation_requests || 0, fill: COLORS[2] }
     ];
   };
 
@@ -310,7 +292,6 @@ function Analytics() {
       date: format(new Date(metric.metric_date), 'MMM dd'),
       conversations: metric.total_conversations,
       users: metric.unique_users,
-      appointments: metric.appointments_booked,
       conversionRate: metric.conversion_rate
     }));
   };
@@ -440,14 +421,6 @@ function Analytics() {
                 color="info"
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <MetricCard
-                title="Appointments"
-                value={data.overview.totalAppointments}
-                icon={<EventNote />}
-                color="warning"
-              />
-            </Grid>
           </Grid>
 
           <Grid container spacing={3}>
@@ -474,12 +447,6 @@ function Analytics() {
                       dataKey="users" 
                       stroke={COLORS[1]} 
                       name="Unique Users"
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="appointments" 
-                      stroke={COLORS[2]} 
-                      name="Appointments"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -509,9 +476,6 @@ function Analytics() {
                   </Typography>
                   <Typography variant="body2">
                     Consultation: {data.conversionFunnel.consultation_rate || 0}%
-                  </Typography>
-                  <Typography variant="body2">
-                    Booking: {data.conversionFunnel.booking_rate || 0}%
                   </Typography>
                 </Box>
               </Paper>
@@ -609,7 +573,6 @@ function Analytics() {
                       <TableRow>
                         <TableCell>User</TableCell>
                         <TableCell align="right">Conversations</TableCell>
-                        <TableCell align="right">Appointments</TableCell>
                         <TableCell align="right">Engagement Hours</TableCell>
                         <TableCell>Commands Used</TableCell>
                       </TableRow>
@@ -619,7 +582,6 @@ function Analytics() {
                         <TableRow key={user.id}>
                           <TableCell>{user.name || 'Unknown User'}</TableCell>
                           <TableCell align="right">{user.total_conversations}</TableCell>
-                          <TableCell align="right">{user.total_appointments}</TableCell>
                           <TableCell align="right">
                             {Math.round(user.engagement_hours || 0)}h
                           </TableCell>
@@ -685,29 +647,6 @@ function Analytics() {
                 </List>
               </Paper>
 
-              <Paper sx={{ p: 3, mt: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Appointment Analytics
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="textSecondary">
-                      Total Bookings
-                    </Typography>
-                    <Typography variant="h4">
-                      {data.appointmentAnalytics.total_appointments || 0}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="textSecondary">
-                      Conversion Rate
-                    </Typography>
-                    <Typography variant="h4" color="primary.main">
-                      {data.appointmentAnalytics.conversion_stats?.conversion_rate || 0}%
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
             </Grid>
           </Grid>
         </TabPanel>
@@ -758,39 +697,6 @@ function Analytics() {
         {/* Predictions Tab */}
         <TabPanel value={tabValue} index={4}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  Appointment Forecasting
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="textSecondary">
-                      Predicted Appointments (Next 7 Days)
-                    </Typography>
-                    <Typography variant="h4" color="primary.main">
-                      {data.predictions.appointments?.predicted_appointments || 0}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">
-                      Pessimistic
-                    </Typography>
-                    <Typography variant="h6" color="error.main">
-                      {data.predictions.appointments?.pessimistic_forecast || 0}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="textSecondary">
-                      Optimistic
-                    </Typography>
-                    <Typography variant="h6" color="success.main">
-                      {data.predictions.appointments?.optimistic_forecast || 0}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Grid>
 
             <Grid item xs={12} md={6}>
               <Paper sx={{ p: 3 }}>

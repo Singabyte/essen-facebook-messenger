@@ -14,12 +14,6 @@ CREATE INDEX IF NOT EXISTS idx_conversations_recent ON conversations(created_at 
 CREATE INDEX IF NOT EXISTS idx_conversations_commands ON conversations(message) WHERE message LIKE '/%';
 CREATE INDEX IF NOT EXISTS idx_conversations_user_recent ON conversations(user_id, created_at DESC) WHERE created_at >= CURRENT_DATE - INTERVAL '30 days';
 
--- Appointments table
-CREATE INDEX IF NOT EXISTS idx_appointments_user_status ON appointments(user_id, status);
-CREATE INDEX IF NOT EXISTS idx_appointments_date_time ON appointments(appointment_date, appointment_time);
-CREATE INDEX IF NOT EXISTS idx_appointments_created ON appointments(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_appointments_status_date ON appointments(status, appointment_date) WHERE status IN ('pending', 'confirmed');
-CREATE INDEX IF NOT EXISTS idx_appointments_upcoming ON appointments(appointment_date, appointment_time) WHERE status = 'confirmed' AND appointment_date >= CURRENT_DATE;
 
 -- User preferences
 CREATE INDEX IF NOT EXISTS idx_user_preferences_user ON user_preferences(user_id);
@@ -48,7 +42,6 @@ CREATE INDEX IF NOT EXISTS idx_business_metrics_recent ON analytics.business_met
 CREATE INDEX IF NOT EXISTS idx_product_inq_name_time ON analytics.product_inquiries(product_name, inquiry_timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_product_inq_category ON analytics.product_inquiries(product_category, inquiry_timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_product_inq_user ON analytics.product_inquiries(user_id, inquiry_timestamp DESC);
-CREATE INDEX IF NOT EXISTS idx_product_inq_appointment ON analytics.product_inquiries(led_to_appointment, inquiry_timestamp DESC) WHERE led_to_appointment = true;
 
 -- User engagement
 CREATE INDEX IF NOT EXISTS idx_user_engagement_segment ON analytics.user_engagement(customer_segment);
@@ -64,9 +57,6 @@ CREATE INDEX IF NOT EXISTS idx_alert_history_severity ON analytics.alert_history
 CREATE INDEX IF NOT EXISTS idx_conversations_last_hour ON conversations(user_id, created_at DESC) 
 WHERE created_at >= CURRENT_TIMESTAMP - INTERVAL '1 hour';
 
--- Today's appointments
-CREATE INDEX IF NOT EXISTS idx_appointments_today ON appointments(appointment_date, appointment_time, status) 
-WHERE appointment_date = CURRENT_DATE;
 
 -- High-value users
 CREATE INDEX IF NOT EXISTS idx_user_engagement_high_value ON analytics.user_engagement(user_id, engagement_score DESC) 
@@ -81,9 +71,6 @@ WHERE inquiry_timestamp >= CURRENT_DATE - INTERVAL '7 days';
 CREATE INDEX IF NOT EXISTS idx_user_conversation_history ON conversations(user_id, created_at DESC, is_from_user)
 INCLUDE (message);
 
--- Appointment analytics
-CREATE INDEX IF NOT EXISTS idx_appointment_analytics ON appointments(user_id, appointment_date, status)
-INCLUDE (appointment_time, service_type);
 
 -- Message pattern analysis
 CREATE INDEX IF NOT EXISTS idx_message_patterns ON conversations(user_id, created_at DESC)
@@ -94,7 +81,6 @@ WHERE message LIKE '%price%' OR message LIKE '%cost%' OR message LIKE '%promotio
 CREATE INDEX IF NOT EXISTS idx_conversations_hour ON conversations(EXTRACT(hour FROM created_at), created_at DESC);
 
 -- Day of week analysis
-CREATE INDEX IF NOT EXISTS idx_appointments_dow ON appointments(EXTRACT(dow FROM appointment_date), status);
 
 -- Message length analysis
 CREATE INDEX IF NOT EXISTS idx_message_length ON conversations(LENGTH(message), created_at DESC);

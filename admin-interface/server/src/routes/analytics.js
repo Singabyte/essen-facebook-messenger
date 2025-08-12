@@ -62,17 +62,6 @@ router.get('/product-trends', async (req, res) => {
   }
 });
 
-// Get appointment analytics
-router.get('/appointments', async (req, res) => {
-  try {
-    const { days = 30 } = req.query;
-    const analytics = await queries.analytics.getAppointmentAnalytics(parseInt(days));
-    res.json({ ...analytics, period: `${days} days` });
-  } catch (error) {
-    console.error('Error fetching appointment analytics:', error);
-    res.status(500).json({ message: 'Error fetching appointment analytics', error: error.message });
-  }
-});
 
 // Get peak usage hours
 router.get('/peak-hours', async (req, res) => {
@@ -216,32 +205,6 @@ router.get('/predictions', async (req, res) => {
   try {
     const { days = 7 } = req.query;
     
-    // Predict appointment bookings based on historical trends
-    const appointmentPrediction = await pool.query(`
-      WITH daily_appointments AS (
-        SELECT 
-          DATE_TRUNC('day', created_at) as date,
-          COUNT(*) as appointments
-        FROM appointments
-        WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
-        GROUP BY DATE_TRUNC('day', created_at)
-        ORDER BY date
-      ),
-      trend_calculation AS (
-        SELECT 
-          AVG(appointments) as avg_daily,
-          STDDEV(appointments) as stddev_daily,
-          COUNT(*) as data_points
-        FROM daily_appointments
-      )
-      SELECT 
-        avg_daily,
-        stddev_daily,
-        ROUND(avg_daily * ${days}) as predicted_appointments,
-        ROUND(avg_daily * ${days} * 0.8) as pessimistic_forecast,
-        ROUND(avg_daily * ${days} * 1.2) as optimistic_forecast
-      FROM trend_calculation
-    `);
 
     // Predict peak usage times
     const usagePrediction = await pool.query(`
@@ -271,16 +234,14 @@ router.get('/predictions', async (req, res) => {
           u.id,
           u.name,
           COUNT(DISTINCT c.id) as total_conversations,
-          COUNT(DISTINCT a.id) as appointments_booked,
           CASE 
-            WHEN COUNT(DISTINCT a.id) > 0 THEN 'High Value'
+            WHEN COUNT(DISTINCT c.id) > 20 THEN 'High Value'
             WHEN COUNT(DISTINCT c.id) > 10 THEN 'Engaged'
             WHEN COUNT(DISTINCT c.id) > 3 THEN 'Interested'
             ELSE 'Low Engagement'
           END as value_segment
         FROM users u
         LEFT JOIN conversations c ON u.id = c.user_id
-        LEFT JOIN appointments a ON u.id = a.user_id
         WHERE u.last_interaction >= CURRENT_DATE - INTERVAL '30 days'
         GROUP BY u.id, u.name
       )
@@ -294,7 +255,6 @@ router.get('/predictions', async (req, res) => {
     `);
 
     res.json({
-      appointments: appointmentPrediction.rows[0] || {},
       peak_hours: usagePrediction.rows,
       customer_segments: customerValue.rows,
       prediction_period: `${days} days`,
@@ -334,20 +294,6 @@ router.get('/export', async (req, res) => {
         filename = 'conversations_export';
         break;
         
-      case 'appointments':
-        const appointments = await pool.query(`
-          SELECT 
-            a.*,
-            u.name as user_name
-          FROM appointments a
-          LEFT JOIN users u ON a.user_id = u.id
-          WHERE ($1::date IS NULL OR a.created_at >= $1::date)
-            AND ($2::date IS NULL OR a.created_at <= $2::date)
-          ORDER BY a.created_at DESC
-        `, [startDate, endDate]);
-        data = appointments.rows;
-        filename = 'appointments_export';
-        break;
         
       case 'user_engagement':
         const engagement = await queries.analytics.getUserEngagement(1000);
@@ -429,7 +375,6 @@ router.get('/business-report', async (req, res) => {
       overview,
       conversion,
       productTrends,
-      appointmentAnalytics,
       peakHours,
       satisfaction,
       businessMetrics
@@ -437,7 +382,6 @@ router.get('/business-report', async (req, res) => {
       queries.analytics.getOverview(),
       queries.analytics.getConversionFunnel(),
       queries.analytics.getProductTrends(days),
-      queries.analytics.getAppointmentAnalytics(days),
       queries.analytics.getPeakUsageHours(days),
       queries.analytics.getUserSatisfactionMetrics(days),
       queries.analytics.getBusinessMetrics(days)
@@ -465,7 +409,6 @@ router.get('/business-report', async (req, res) => {
         total_users: overview.totalUsers,
         active_users: overview.activeUsers,
         total_conversations: overview.totalConversations,
-        total_appointments: overview.totalAppointments,
         conversion_rate: conversion.booking_rate || 0,
         satisfaction_rate: satisfaction.satisfaction_rate || 0
       },
@@ -474,11 +417,6 @@ router.get('/business-report', async (req, res) => {
       product_performance: {
         top_products: productTrends.slice(0, 5),
         trending: productTrends.filter(p => p.avg_daily_mentions > 1)
-      },
-      appointment_insights: {
-        total_bookings: appointmentAnalytics.total_appointments || 0,
-        peak_booking_hours: appointmentAnalytics.peak_hours || [],
-        conversion_stats: appointmentAnalytics.conversion_stats || {}
       },
       operational_insights: {
         peak_hours: peakHours.slice(0, 5),
@@ -506,7 +444,7 @@ function generateRecommendations(conversion, satisfaction, productTrends, peakHo
     recommendations.push({
       category: 'Conversion Optimization',
       priority: 'High',
-      recommendation: 'Booking conversion rate is below 20%. Consider improving appointment scheduling flow or adding incentives.',
+      recommendation: 'Conversion rate is below 20%. Consider improving user engagement flow or adding incentives.',
       metric: `Current rate: ${conversion.booking_rate}%`
     });
   }
