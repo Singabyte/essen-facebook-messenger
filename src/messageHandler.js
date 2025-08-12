@@ -1,6 +1,8 @@
 const axios = require('axios');
 const { db } = require('./database-pg');
 const { generateResponseWithHistory, generateResponseWithHistoryAndImages } = require('./geminiClient');
+const { metricsCollector } = require('./monitoring');
+const adminSocketClient = require('./admin-socket-client');
 
 const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 
@@ -247,6 +249,8 @@ async function handleMessage(event) {
   }
   
   try {
+    const startTime = Date.now(); // Track response time
+    
     // Fetch and save user profile
     const userProfile = await getUserProfile(senderId);
     await db.saveUser(senderId, userProfile);
@@ -298,10 +302,32 @@ async function handleMessage(event) {
       // Save all messages to conversation history
       const fullResponse = messages.map(m => m.text).join(' ');
       await db.saveConversation(senderId, messageText, fullResponse);
+      
+      // Record metrics and send to admin
+      const responseTime = Date.now() - startTime;
+      metricsCollector.recordMessage(senderId, Date.now(), responseTime);
+      adminSocketClient.sendMessageProcessed({
+        userId: senderId,
+        userName: userProfile.name,
+        messageText: messageText || '[Image]',
+        responseText: fullResponse,
+        responseTime: responseTime
+      });
     } else {
       // Single message - use consistent message format
       await sendMessage(senderId, messages[0].text);
       await db.saveConversation(senderId, messageText, messages[0].text);
+      
+      // Record metrics and send to admin
+      const responseTime = Date.now() - startTime;
+      metricsCollector.recordMessage(senderId, Date.now(), responseTime);
+      adminSocketClient.sendMessageProcessed({
+        userId: senderId,
+        userName: userProfile.name,
+        messageText: messageText || '[Image]',
+        responseText: messages[0].text,
+        responseTime: responseTime
+      });
     }
     
   } catch (error) {

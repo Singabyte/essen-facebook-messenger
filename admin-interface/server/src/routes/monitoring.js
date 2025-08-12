@@ -251,6 +251,25 @@ router.get('/version', async (req, res) => {
   }
 });
 
+// Simple metrics endpoint - proxy to bot
+router.get('/metrics', async (req, res) => {
+  try {
+    const response = await axios.get(`${BOT_SERVICE_URL}/debug/metrics`, {
+      timeout: 5000
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Failed to fetch metrics:', error.message);
+    // Return empty metrics if bot is unreachable
+    res.json({
+      timestamp: new Date().toISOString(),
+      messages: { total: 0, last_hour: 0, last_24h: 0, avg_response_time: 0 },
+      users: { total: 0, active_today: 0, active_this_week: 0 },
+      system: { memory_mb: 0 }
+    });
+  }
+});
+
 // Live metrics endpoint that aggregates multiple data sources
 router.get('/live-metrics', async (req, res) => {
   try {

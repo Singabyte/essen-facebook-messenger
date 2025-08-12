@@ -51,9 +51,17 @@ const initializeWebSocket = (server) => {
   
   console.log(`Socket.io initialized with path: ${socketPath}`);
 
-  // Authentication middleware
+  // Authentication middleware - allow bot service or admin users
   io.use(async (socket, next) => {
     try {
+      // Check if it's the bot service
+      if (socket.handshake.auth.service === 'bot') {
+        socket.isBot = true;
+        socket.username = 'bot-service';
+        return next();
+      }
+      
+      // Otherwise, require JWT token for admin users
       const token = socket.handshake.auth.token;
       if (!token) {
         return next(new Error('Authentication error'));
@@ -62,6 +70,7 @@ const initializeWebSocket = (server) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.id;
       socket.username = decoded.username;
+      socket.isBot = false;
       next();
     } catch (error) {
       next(new Error('Authentication error'));
@@ -69,9 +78,39 @@ const initializeWebSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(`Admin user connected: ${socket.username}`);
+    console.log(`${socket.isBot ? 'Bot service' : 'Admin user'} connected: ${socket.username}`);
 
-    // Join admin room
+    // Bot service handlers
+    if (socket.isBot) {
+      console.log('Bot service connected - setting up event handlers');
+      
+      // Handle metrics updates from bot
+      socket.on('metrics:update', (metrics) => {
+        // Broadcast to all admin clients
+        io.to('admins').emit('metrics:update', metrics);
+        io.to('monitoring').emit('metrics:update', metrics);
+      });
+      
+      // Handle processed messages from bot
+      socket.on('message:processed', (messageData) => {
+        // Broadcast to all admin clients
+        io.to('admins').emit('message:new', messageData);
+        io.to('monitoring').emit('message:new', messageData);
+        
+        // Also emit to user-specific room
+        io.to(`user-${messageData.user_id}`).emit('message:new', messageData);
+      });
+      
+      // Handle health status changes
+      socket.on('health:changed', (healthStatus) => {
+        io.to('admins').emit('health:changed', healthStatus);
+        io.to('monitoring').emit('health:changed', healthStatus);
+      });
+      
+      return; // Don't continue with admin-specific setup
+    }
+
+    // Join admin room for admin users only
     socket.join('admins');
     console.log(`Socket ${socket.id} joined 'admins' room`);
 

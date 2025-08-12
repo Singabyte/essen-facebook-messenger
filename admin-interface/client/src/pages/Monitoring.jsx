@@ -1,8 +1,8 @@
 import React from 'react'
-import MonitoringDashboard from '../components/MonitoringDashboard'
+import MonitoringSimple from './MonitoringSimple'
 
 function Monitoring() {
-  return <MonitoringDashboard />
+  return <MonitoringSimple />
 }
 
 export default Monitoring
