@@ -15,7 +15,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Testing
 - `node scripts/test-essen-bot.js` - Test ESSEN-specific bot responses
-- `node scripts/test-appointment.js` - Test appointment booking functionality
 - `./scripts/test-local.sh` - Run local tests
 
 ### Deployment
@@ -88,7 +87,7 @@ essen-facebook-messenger/
 #### Bot Application
 - **Express Server** (`src/index.js`): Main entry point, initializes database and Facebook features
 - **Webhook Handler** (`src/webhook.js`, `src/webhook-enhanced.js`): Handles Facebook webhook verification and message routing
-- **Message Handler** (`src/messageHandler.js`): Processes incoming messages, manages commands, generates responses
+- **Message Handler** (`src/messageHandler.js`): Processes incoming messages and generates responses
 - **Gemini Integration** (`src/geminiClient.js`): Integrates with Google's Gemini AI, loads ESSEN knowledge base
 - **Database** (`src/database.js`, `src/database-pg.js`): SQLite/PostgreSQL database for conversations, users, preferences, and analytics
 - **Facebook Integration** (`src/facebook-integration.js`): Facebook-specific features and API calls
@@ -97,25 +96,22 @@ essen-facebook-messenger/
 #### Admin Interface
 - **React Frontend** (`admin-interface/client`): Vite-based React app with Material-UI
 - **Express Backend** (`admin-interface/server`): RESTful API with JWT authentication
-- **Features**: Dashboard, user management, conversation viewer, knowledge base editor, appointment management, analytics
+- **Features**: Dashboard with key metrics, user management, conversation viewer, knowledge base editor, analytics
 
 ### Knowledge Base
 - `essen-chatbot-kb.md` - ESSEN product catalog, services, and company information
 - `essen-chatbot-sg-examples.md` - Singapore context and language examples (Singlish-aware)
 
 ### Key Features
-1. **Command System**: Handles commands like `/help`, `/products`, `/showroom`, `/consultation`, `/bestsellers`, `/clear`, `/about`
-2. **Contextual AI**: Uses conversation history and ESSEN knowledge base for context-aware responses
-3. **Quick Replies**: Dynamic suggestions based on conversation context
-4. **Singapore Context**: Understands HDB, BTO, condo references and local expressions (Singlish-aware)
-5. **Appointment Booking**: Stateful appointment booking flow with validation (11am-7pm operating hours)
+1. **Contextual AI**: Uses conversation history and ESSEN knowledge base for context-aware responses
+2. **Quick Replies**: Dynamic suggestions based on conversation context
+3. **Singapore Context**: Understands HDB, BTO, condo references and local expressions (Singlish-aware)
 
 ### Database Schema
 - `users` - Facebook user information
 - `conversations` - Message history with timestamps
 - `user_preferences` - User settings and preferences
 - `analytics` - Event tracking for monitoring
-- `appointments` - Appointment bookings with user details
 
 ### Environment Variables
 Required in `.env`:
@@ -140,7 +136,7 @@ Admin interface (`admin-interface/server/.env`):
 ### Message Flow
 1. Facebook webhook receives message at `/webhook`
 2. Webhook handler verifies signature and routes to messageHandler
-3. MessageHandler processes commands or generates AI response
+3. MessageHandler processes message and generates AI response
 4. Response includes context-aware quick replies
 5. All interactions are logged in database
 

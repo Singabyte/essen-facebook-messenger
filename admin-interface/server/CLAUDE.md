@@ -77,9 +77,7 @@ server/
 
 #### Analytics (`/api/analytics/`)
 - `GET /usage` - Bot usage statistics
-- `GET /popular-products` - Most inquired products
-- `GET /user-engagement` - User engagement metrics
-- `GET /conversion-rates` - Appointment conversion rates
+- `GET /metrics` - Essential bot performance metrics
 
 #### Knowledge Base (`/api/knowledge-base/`)
 - `GET /` - Get current knowledge base
@@ -94,7 +92,6 @@ The server accesses the same tables as the main bot:
 - `conversations` - Message history
 - `user_preferences` - User settings
 - `analytics` - Event tracking
-- `appointments` - Booking information
 - `admin_users` - Admin dashboard users
 
 ### Middleware Stack

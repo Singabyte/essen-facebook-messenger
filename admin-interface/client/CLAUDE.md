@@ -33,11 +33,10 @@ client/
 ## Key Components
 
 ### Pages (`src/pages/`)
-- **Dashboard**: Main overview with metrics and charts
+- **Dashboard**: Main overview with key metrics (bot health, message volume, active users, error tracking)
 - **Users**: User management and conversation history
-- **Analytics**: Detailed bot performance analytics
+- **Analytics**: Essential bot performance metrics
 - **KnowledgeBase**: Edit bot responses and product catalog
-- **Appointments**: Manage customer appointments
 - **Settings**: System configuration and preferences
 
 ### Components (`src/components/`)

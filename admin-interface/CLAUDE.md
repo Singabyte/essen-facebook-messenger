@@ -19,12 +19,11 @@ The admin interface provides a comprehensive web-based dashboard for managing th
 
 ## Key Features
 
-- **Dashboard**: Overview of bot performance, user metrics, and system health
+- **Dashboard**: Overview with key metrics including bot health, message volume, active users, and error tracking
 - **User Management**: View and manage bot users, their preferences, and conversation history
-- **Conversation Viewer**: Real-time conversation monitoring and analytics
+- **Conversation Viewer**: Real-time conversation monitoring
 - **Knowledge Base Editor**: Modify ESSEN product catalog and bot responses
-- **Appointment Management**: View, manage, and track customer appointments
-- **Analytics**: Detailed metrics on bot usage, popular products, and user engagement
+- **Analytics**: Essential metrics on bot usage and user activity
 - **Real-time Updates**: WebSocket integration for live data updates
 
 ## Technology Stack

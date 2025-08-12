@@ -61,20 +61,10 @@ src/
 
 **Key Responsibilities**:
 - Message parsing and analysis
-- Command detection and routing
 - AI response generation via Gemini
 - Quick reply suggestion generation
 - Conversation context management
 - User preference handling
-
-**Command System**:
-- `/help` - Show available commands
-- `/products` - Browse product categories
-- `/showroom` - Location and hours
-- `/consultation` - Book appointment
-- `/bestsellers` - Popular products
-- `/clear` - Clear conversation history
-- `/about` - Company information
 
 **AI Integration**:
 - Gemini AI for natural language processing
@@ -87,7 +77,6 @@ src/
 - Multi-turn conversation support
 - User intent recognition
 - Product inquiry handling
-- Appointment booking flow
 - Error recovery and fallback responses
 
 ### `geminiClient.js` - Google Gemini AI Integration
@@ -157,12 +146,6 @@ analytics (
   timestamp, session_id
 )
 
--- Appointments
-appointments (
-  id, facebook_id, name, phone, email,
-  preferred_date, preferred_time, status,
-  created_at, updated_at, notes
-)
 ```
 
 **Connection Features**:
@@ -185,7 +168,7 @@ appointments (
 1. Facebook sends webhook POST to `/webhook`
 2. `webhook.js` verifies signature and extracts message
 3. `messageHandler.js` receives and analyzes message
-4. Command detection or AI processing via `geminiClient.js`
+4. AI processing via `geminiClient.js`
 5. Response generation with knowledge base context
 6. Database logging via `database-pg.js`
 7. Response sent back to Facebook API
@@ -195,7 +178,6 @@ appointments (
 2. User profile updated in `users` table
 3. Analytics events logged in `analytics` table
 4. Preferences checked/updated in `user_preferences`
-5. Appointment data managed in `appointments` table
 
 ## Environment Configuration
 
