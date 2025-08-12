@@ -10,35 +10,50 @@ class AdminSocketClient {
   
   connect() {
     // Determine admin backend URL based on environment
+    // In DigitalOcean, services communicate via public URLs
     const adminUrl = process.env.ADMIN_BACKEND_URL || 
                     (process.env.NODE_ENV === 'production' 
-                      ? 'https://essen-messenger-bot-zxxtw.ondigitalocean.app'
+                      ? 'https://essen-messenger-bot-zxxtw.ondigitalocean.app/api' // Production admin API
                       : 'http://localhost:4000');
     
-    console.log('Connecting to admin backend:', adminUrl);
+    console.log('🔌 Attempting to connect to admin backend:', adminUrl);
+    console.log('Environment:', process.env.NODE_ENV);
+    
+    // In production, Socket.io path includes /api prefix
+    const socketPath = process.env.NODE_ENV === 'production' 
+                      ? '/api/socket.io/' 
+                      : '/socket.io/';
     
     this.socket = io(adminUrl, {
       auth: {
         service: 'bot',
         secret: process.env.INTERNAL_SECRET || 'bot-service'
       },
+      path: socketPath,
       reconnection: true,
       reconnectionDelay: 5000,
-      reconnectionAttempts: Infinity
+      reconnectionAttempts: Infinity,
+      transports: ['polling', 'websocket'] // Polling first for DigitalOcean compatibility
     });
     
     this.socket.on('connect', () => {
-      console.log('Connected to admin backend via Socket.io');
+      console.log('✅ Connected to admin backend via Socket.io');
+      console.log('Socket ID:', this.socket.id);
       this.connected = true;
     });
     
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from admin backend');
+    this.socket.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from admin backend:', reason);
       this.connected = false;
     });
     
+    this.socket.on('connect_error', (error) => {
+      console.log('⚠️ Socket.io connection error:', error.message);
+      console.log('Error type:', error.type);
+    });
+    
     this.socket.on('error', (error) => {
-      console.log('Socket.io error:', error.message);
+      console.log('❌ Socket.io error:', error.message);
     });
   }
   

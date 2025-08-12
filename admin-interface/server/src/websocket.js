@@ -31,9 +31,18 @@ const initializeWebSocket = (server) => {
             'https://essen-messenger-bot-zxxtw.ondigitalocean.app',
             'https://*.ondigitalocean.app',
             process.env.FRONTEND_URL,
-            process.env.APP_URL
+            process.env.APP_URL,
+            'http://localhost:3000', // Bot service internal communication
+            'http://facebook-bot:3000' // DigitalOcean internal service name
           ].filter(Boolean)
-        : ['http://localhost:5173', 'http://localhost:3000'],
+        : (origin, callback) => {
+            // Allow any localhost port in development
+            if (!origin || origin.startsWith('http://localhost:')) {
+              callback(null, true);
+            } else {
+              callback(null, false);
+            }
+          },
       credentials: true,
       methods: ['GET', 'POST'],
       allowedHeaders: ['content-type', 'authorization']
@@ -82,29 +91,39 @@ const initializeWebSocket = (server) => {
 
     // Bot service handlers
     if (socket.isBot) {
-      console.log('Bot service connected - setting up event handlers');
+      console.log('✅ Bot service connected - setting up event handlers');
+      console.log('Bot socket ID:', socket.id);
       
       // Handle metrics updates from bot
       socket.on('metrics:update', (metrics) => {
+        console.log('📊 Received metrics:update from bot:', metrics.timestamp);
         // Broadcast to all admin clients
         io.to('admins').emit('metrics:update', metrics);
         io.to('monitoring').emit('metrics:update', metrics);
+        console.log('📡 Broadcasted metrics to admins and monitoring rooms');
       });
       
       // Handle processed messages from bot
       socket.on('message:processed', (messageData) => {
+        console.log('💬 Received message:processed from bot:', messageData.user_id);
         // Broadcast to all admin clients
         io.to('admins').emit('message:new', messageData);
         io.to('monitoring').emit('message:new', messageData);
         
         // Also emit to user-specific room
         io.to(`user-${messageData.user_id}`).emit('message:new', messageData);
+        console.log('📡 Broadcasted message to admins, monitoring, and user rooms');
       });
       
       // Handle health status changes
       socket.on('health:changed', (healthStatus) => {
+        console.log('🏥 Received health:changed from bot');
         io.to('admins').emit('health:changed', healthStatus);
         io.to('monitoring').emit('health:changed', healthStatus);
+      });
+      
+      socket.on('disconnect', () => {
+        console.log('❌ Bot service disconnected');
       });
       
       return; // Don't continue with admin-specific setup
@@ -167,67 +186,8 @@ const initializeWebSocket = (server) => {
     });
   });
 
-  // Create a separate namespace for bot connections (no auth required)
-  const botNamespace = io.of('/bot-connection');
-  
-  botNamespace.on('connection', (socket) => {
-    console.log('Bot connected to admin server');
-    
-    // Handle bot events
-    socket.on('conversation:new', (data) => {
-      console.log('Bot event received: conversation:new');
-      resetDailyCounters(); // Check if it's a new day
-      
-      // Track active user
-      const wasNewUser = !activeUsersToday.has(data.user_id);
-      activeUsersToday.add(data.user_id);
-      
-      // Increment today's conversation count
-      todayConversationCount.count++;
-      
-      // Emit events
-      emitToAdmins('conversation:new', data);
-      emitToRoom('conversations', 'conversation:new', data);
-      
-      // Always emit updated conversation count
-      emitToRoom('dashboard', 'stats:update', {
-        todayConversations: todayConversationCount.count
-      });
-    });
-    
-    socket.on('user:new', (data) => {
-      console.log('Bot event received: user:new');
-      emitToAdmins('user:new', data);
-      emitToRoom('users', 'user:new', data);
-    });
-    
-    socket.on('appointment:new', (data) => {
-      console.log('Bot event received: appointment:new');
-      emitToAdmins('appointment:new', data);
-      emitToRoom('appointments', 'appointment:new', data);
-      
-      // Update appointment analytics in real-time
-      emitToRoom('analytics', 'appointment:analytics:update', {
-        type: 'new_appointment',
-        data: data,
-        timestamp: new Date().toISOString()
-      });
-    });
-
-    socket.on('analytics:metric:update', (data) => {
-      console.log('Bot event received: analytics:metric:update');
-      emitToRoom('analytics', 'metric:update', data);
-    });
-
-    socket.on('performance:query', (data) => {
-      console.log('Bot event received: performance:query');
-      emitToRoom('analytics', 'performance:query', data);
-    });
-    
-    socket.on('disconnect', () => {
-      console.log('Bot disconnected from admin server');
-    });
-  });
+  // Removed duplicate bot-connection namespace - using main namespace with auth instead
+  // Bot connects through main namespace with auth: { service: 'bot' }
 
   // Start periodic stats updates
   startPeriodicStatsUpdate();

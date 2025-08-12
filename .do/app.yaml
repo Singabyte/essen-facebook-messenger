@@ -39,6 +39,8 @@ services:
     value: "${db.DATABASE_URL}"
   - key: PORT
     value: "3000"
+  - key: ADMIN_BACKEND_URL
+    value: "https://essen-messenger-bot-zxxtw.ondigitalocean.app"
 
 # Admin API Service
 - name: admin-api
