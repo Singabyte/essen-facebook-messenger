@@ -137,18 +137,55 @@ async function sendMultipleMessages(recipientId, messages) {
   }
 }
 
-// Parse multi-message response
+// Parse multi-message response with intelligent splitting
 function parseMultiMessageResponse(response) {
   // Check if response contains the delimiter ||WAIT:xxxx||
   const delimiter = /\|\|WAIT:(\d+)\|\|/g;
   const parts = response.split(delimiter);
   
+  // Check if it's a short response that should remain as single message
+  const isShortResponse = response.length < 150 && !response.includes('||WAIT:');
+  
   if (parts.length === 1) {
-    // No delimiter found - single message
-    return [{ text: response.trim(), waitAfter: 0 }];
+    // No delimiter found - check if we should auto-split
+    const text = response.trim();
+    
+    // Auto-split logic for messages without explicit delimiters
+    // Look for patterns that indicate a natural break
+    const autoSplitPatterns = [
+      /([.!])\s+([Ww]hen\s+(would|can|are|will)\s+you)/,
+      /([.!])\s+([Ww]ould\s+you\s+like)/,
+      /([.!])\s+([Ww]ant\s+to\s+)/,
+      /([.!])\s+([Aa]re\s+you\s+(looking|interested|planning|thinking))/,
+      /([.!])\s+([Dd]o\s+you\s+(need|want|have))/,
+      /([.!])\s+([Ww]hich\s+)/,
+      /([.!])\s+([Ww]hat\s+(time|day)\s+)/
+    ];
+    
+    // Only auto-split if message is long enough and contains a question pattern
+    if (!isShortResponse && text.length > 150) {
+      for (const pattern of autoSplitPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+          const splitIndex = match.index + match[1].length;
+          const firstPart = text.substring(0, splitIndex).trim();
+          const secondPart = text.substring(splitIndex).trim();
+          
+          if (firstPart && secondPart && secondPart.length > 20) {
+            return [
+              { text: firstPart, waitAfter: 2000 },
+              { text: secondPart, waitAfter: 0 }
+            ];
+          }
+        }
+      }
+    }
+    
+    // No auto-split applicable
+    return [{ text: text, waitAfter: 0 }];
   }
   
-  // Parse multi-message format
+  // Parse multi-message format with explicit delimiters
   const messages = [];
   for (let i = 0; i < parts.length; i += 2) {
     const text = parts[i].trim();
@@ -156,6 +193,18 @@ function parseMultiMessageResponse(response) {
       const waitAfter = i + 1 < parts.length ? parseInt(parts[i + 1]) || 0 : 0;
       messages.push({ text, waitAfter });
     }
+  }
+  
+  // Limit to maximum 2 messages
+  if (messages.length > 2) {
+    // Combine all messages after the first into the second message
+    const firstMessage = messages[0];
+    const remainingText = messages.slice(1).map(m => m.text).join(' ');
+    
+    return [
+      firstMessage,
+      { text: remainingText, waitAfter: 0 }
+    ];
   }
   
   return messages;
