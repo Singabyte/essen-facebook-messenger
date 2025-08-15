@@ -14,9 +14,9 @@ const recentMessages = new Map(); // Map of senderId -> { messageText, timestamp
 const processedMessageIds = new Set(); // Set of processed message IDs
 const DEDUP_WINDOW_MS = 5000; // 5 second window
 
-// Message batching - collect messages for 60 seconds before processing
+// Message batching - collect messages for 30 seconds before processing
 const messageBatches = new Map(); // Map of senderId -> { messages: [], images: [], timer: null, firstMessageTime: Date }
-const BATCH_TIMEOUT_MS = 60000; // 60 seconds
+const BATCH_TIMEOUT_MS = 30000; // 30 seconds
 
 // Utility function for delays
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -368,13 +368,13 @@ async function handleMessage(event) {
         firstMessageTime: Date.now()
       });
       
-      // Set 60-second timer to process batch
+      // Set 30-second timer to process batch
       const timer = setTimeout(() => {
         processBatchedMessages(senderId);
       }, BATCH_TIMEOUT_MS);
       
       messageBatches.get(senderId).timer = timer;
-      console.log(`Started new batch for ${senderId}, will process in 60 seconds`);
+      console.log(`Started new batch for ${senderId}, will process in 30 seconds`);
     }
     
     // Add message and images to batch
