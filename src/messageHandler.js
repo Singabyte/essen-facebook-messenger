@@ -14,6 +14,10 @@ const recentMessages = new Map(); // Map of senderId -> { messageText, timestamp
 const processedMessageIds = new Set(); // Set of processed message IDs
 const DEDUP_WINDOW_MS = 5000; // 5 second window
 
+// Message batching - collect messages for 60 seconds before processing
+const messageBatches = new Map(); // Map of senderId -> { messages: [], images: [], timer: null, firstMessageTime: Date }
+const BATCH_TIMEOUT_MS = 60000; // 60 seconds
+
 // Utility function for delays
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -157,6 +161,111 @@ function parseMultiMessageResponse(response) {
   return messages;
 }
 
+// Process batched messages after timeout
+async function processBatchedMessages(senderId) {
+  const batch = messageBatches.get(senderId);
+  if (!batch || (batch.messages.length === 0 && batch.images.length === 0)) {
+    console.log(`No messages to process for ${senderId}`);
+    return;
+  }
+  
+  // Clear timer and remove batch
+  if (batch.timer) {
+    clearTimeout(batch.timer);
+  }
+  messageBatches.delete(senderId);
+  
+  // Combine all messages into single prompt
+  const combinedMessage = batch.messages.join('\n');
+  const allImages = batch.images;
+  
+  console.log(`Processing batch for ${senderId}: ${batch.messages.length} messages, ${allImages.length} images`);
+  
+  try {
+    const startTime = Date.now();
+    
+    // Fetch and save user profile
+    const userProfile = await getUserProfile(senderId);
+    await db.saveUser(senderId, userProfile);
+    
+    // Get conversation history
+    const history = await db.getConversationHistory(senderId, 15);
+    
+    // Generate AI response with retry logic
+    let response = '';
+    let retries = 0;
+    const maxRetries = 3;
+    
+    while ((!response || !response.trim()) && retries < maxRetries) {
+      if (retries > 0) {
+        console.log(`Retry ${retries}/${maxRetries} - Empty response from Gemini, retrying...`);
+        await delay(500);
+      }
+      
+      // If there are images, use enhanced response function
+      if (allImages.length > 0) {
+        response = await generateResponseWithHistoryAndImages(combinedMessage, history, allImages);
+      } else {
+        response = await generateResponseWithHistory(combinedMessage, history);
+      }
+      
+      retries++;
+    }
+    
+    // If still empty after retries, use fallback
+    if (!response || !response.trim()) {
+      console.error('Empty response from Gemini after all retries');
+      if (allImages.length > 0) {
+        response = 'thanks for sharing the photo! let me help you with that. could you tell me more about what you\'re looking for? 😊';
+      } else {
+        response = 'hey! sorry, could you say that again? i want to make sure i understand correctly! 😊';
+      }
+    }
+    
+    // Parse response for multiple messages
+    const messages = parseMultiMessageResponse(response);
+    
+    if (messages.length > 1) {
+      // Multiple messages - send with delays
+      await sendMultipleMessages(senderId, messages);
+      
+      // Save all messages to conversation history
+      const fullResponse = messages.map(m => m.text).join(' ');
+      await db.saveConversation(senderId, combinedMessage, fullResponse);
+      
+      // Record metrics and send to admin
+      const responseTime = Date.now() - startTime;
+      metricsCollector.recordMessage(senderId, Date.now(), responseTime);
+      adminSocketClient.sendMessageProcessed({
+        userId: senderId,
+        userName: userProfile.name,
+        messageText: combinedMessage || '[Image]',
+        responseText: fullResponse,
+        responseTime: responseTime
+      });
+    } else {
+      // Single message - use consistent message format
+      await sendMessage(senderId, messages[0].text);
+      await db.saveConversation(senderId, combinedMessage, messages[0].text);
+      
+      // Record metrics and send to admin
+      const responseTime = Date.now() - startTime;
+      metricsCollector.recordMessage(senderId, Date.now(), responseTime);
+      adminSocketClient.sendMessageProcessed({
+        userId: senderId,
+        userName: userProfile.name,
+        messageText: combinedMessage || '[Image]',
+        responseText: messages[0].text,
+        responseTime: responseTime
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error processing batched messages:', error);
+    await sendMessage(senderId, 'Sorry, I encountered an error. Please try again or call us at +65 6019 0775.');
+  }
+}
+
 // Handle incoming messages
 async function handleMessage(event) {
   const senderId = event.sender.id;
@@ -248,91 +357,41 @@ async function handleMessage(event) {
     }
   }
   
+  // Add message to batch instead of processing immediately
   try {
-    const startTime = Date.now(); // Track response time
-    
-    // Fetch and save user profile
-    const userProfile = await getUserProfile(senderId);
-    await db.saveUser(senderId, userProfile);
-    
-    // Get conversation history
-    const history = await db.getConversationHistory(senderId, 15);
-    
-    // Generate AI response for all messages with retry logic
-    let response = '';
-    let retries = 0;
-    const maxRetries = 3;
-    
-    // Prepare message content - could be text, image, or both
-    const userMessage = messageText || '';
-    
-    while ((!response || !response.trim()) && retries < maxRetries) {
-      if (retries > 0) {
-        console.log(`Retry ${retries}/${maxRetries} - Empty response from Gemini, retrying...`);
-        await delay(500); // Small delay before retry
-      }
-      
-      // If there are images, use enhanced response function
-      if (imageUrls.length > 0) {
-        response = await generateResponseWithHistoryAndImages(userMessage, history, imageUrls);
-      } else {
-        response = await generateResponseWithHistory(userMessage, history);
-      }
-      
-      retries++;
-    }
-    
-    // If still empty after retries, use fallback
-    if (!response || !response.trim()) {
-      console.error('Empty response from Gemini after all retries');
-      if (imageUrls.length > 0) {
-        response = 'thanks for sharing the photo! let me help you with that. could you tell me more about what you\'re looking for? 😊';
-      } else {
-        response = 'hey! sorry, could you say that again? i want to make sure i understand correctly! 😊';
-      }
-    }
-    
-    // Parse response for multiple messages
-    const messages = parseMultiMessageResponse(response);
-    
-    if (messages.length > 1) {
-      // Multiple messages - send with delays
-      await sendMultipleMessages(senderId, messages);
-      
-      // Save all messages to conversation history
-      const fullResponse = messages.map(m => m.text).join(' ');
-      await db.saveConversation(senderId, messageText, fullResponse);
-      
-      // Record metrics and send to admin
-      const responseTime = Date.now() - startTime;
-      metricsCollector.recordMessage(senderId, Date.now(), responseTime);
-      adminSocketClient.sendMessageProcessed({
-        userId: senderId,
-        userName: userProfile.name,
-        messageText: messageText || '[Image]',
-        responseText: fullResponse,
-        responseTime: responseTime
+    // Check if user has an active batch
+    if (!messageBatches.has(senderId)) {
+      messageBatches.set(senderId, {
+        messages: [],
+        images: [],
+        timer: null,
+        firstMessageTime: Date.now()
       });
-    } else {
-      // Single message - use consistent message format
-      await sendMessage(senderId, messages[0].text);
-      await db.saveConversation(senderId, messageText, messages[0].text);
       
-      // Record metrics and send to admin
-      const responseTime = Date.now() - startTime;
-      metricsCollector.recordMessage(senderId, Date.now(), responseTime);
-      adminSocketClient.sendMessageProcessed({
-        userId: senderId,
-        userName: userProfile.name,
-        messageText: messageText || '[Image]',
-        responseText: messages[0].text,
-        responseTime: responseTime
-      });
+      // Set 60-second timer to process batch
+      const timer = setTimeout(() => {
+        processBatchedMessages(senderId);
+      }, BATCH_TIMEOUT_MS);
+      
+      messageBatches.get(senderId).timer = timer;
+      console.log(`Started new batch for ${senderId}, will process in 60 seconds`);
     }
+    
+    // Add message and images to batch
+    const batch = messageBatches.get(senderId);
+    if (messageText) {
+      batch.messages.push(messageText);
+    }
+    if (imageUrls.length > 0) {
+      batch.images.push(...imageUrls);
+    }
+    
+    console.log(`Added to batch for ${senderId}: "${messageText || '[Image]'}" (Total: ${batch.messages.length} messages, ${batch.images.length} images)`);
     
   } catch (error) {
-    console.error('Error handling message:', error);
-    await sendMessage(senderId, 'Sorry, I encountered an error. Please try again or call us at +65 6019 0775.');
+    console.error('Error adding message to batch:', error);
+    // If batching fails, process immediately as fallback
+    await processBatchedMessages(senderId);
   }
 }
 
