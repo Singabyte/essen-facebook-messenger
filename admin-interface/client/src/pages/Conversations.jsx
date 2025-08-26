@@ -15,7 +15,7 @@ import {
   TextField,
   MenuItem,
 } from '@mui/material'
-import { Person, Chat } from '@mui/icons-material'
+import { Person, Chat, Facebook as FacebookIcon, Instagram as InstagramIcon } from '@mui/icons-material'
 import DataTable from '../components/DataTable'
 import { conversationsAPI } from '../services/api'
 import { format, subDays, startOfDay, endOfDay } from 'date-fns'
@@ -127,6 +127,20 @@ function Conversations() {
           </Avatar>
           {value || 'Unknown User'}
         </Box>
+      ),
+    },
+    {
+      field: 'platform',
+      headerName: 'Platform',
+      minWidth: 100,
+      render: (value) => (
+        <Chip
+          size="small"
+          icon={value === 'instagram' ? <InstagramIcon /> : <FacebookIcon />}
+          label={value === 'instagram' ? 'IG' : 'FB'}
+          color={value === 'instagram' ? 'secondary' : 'primary'}
+          variant="outlined"
+        />
       ),
     },
     {

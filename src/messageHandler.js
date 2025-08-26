@@ -3,6 +3,7 @@ const { db } = require('./database-pg');
 const { generateResponseWithHistory, generateResponseWithHistoryAndImages } = require('./geminiClient');
 const { metricsCollector } = require('./monitoring');
 const adminSocketClient = require('./admin-socket-client');
+const platformAdapter = require('./platform-adapter');
 
 const FACEBOOK_API_URL = 'https://graph.facebook.com/v18.0';
 
@@ -21,114 +22,78 @@ const BATCH_TIMEOUT_MS = 30000; // 30 seconds
 // Utility function for delays
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Fetch user profile from Facebook Graph API
-async function getUserProfile(userId) {
+// Fetch user profile from platform API
+async function getUserProfile(userId, platform = 'facebook') {
   try {
     // Check cache first
-    if (userProfileCache.has(userId)) {
-      const cached = userProfileCache.get(userId);
+    const cacheKey = `${platform}:${userId}`;
+    if (userProfileCache.has(cacheKey)) {
+      const cached = userProfileCache.get(cacheKey);
       // Cache for 24 hours
       if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
         return cached.data;
       }
     }
     
-    console.log(`Fetching profile for user ${userId} from Facebook API`);
+    console.log(`Fetching profile for user ${userId} from ${platform} API`);
     
-    const response = await axios.get(
-      `${FACEBOOK_API_URL}/${userId}`,
-      {
-        params: {
-          fields: 'first_name,last_name,profile_pic,locale,timezone',
-          access_token: process.env.PAGE_ACCESS_TOKEN
-        }
-      }
-    );
-    
-    const profileData = {
-      name: `${response.data.first_name || ''} ${response.data.last_name || ''}`.trim() || 'User',
-      first_name: response.data.first_name,
-      last_name: response.data.last_name,
-      profile_pic: response.data.profile_pic,
-      locale: response.data.locale,
-      timezone: response.data.timezone
-    };
+    // Use platform adapter to get profile
+    const profileData = await platformAdapter.getUserProfile(userId, platform);
     
     // Cache the profile
-    userProfileCache.set(userId, {
+    userProfileCache.set(cacheKey, {
       data: profileData,
       timestamp: Date.now()
     });
     
-    console.log(`Profile fetched for ${profileData.name}`);
+    console.log(`Profile fetched for ${profileData.name} on ${platform}`);
     return profileData;
     
   } catch (error) {
-    console.error('Error fetching user profile:', error.response?.data || error.message);
+    console.error('Error fetching user profile:', error);
     
     // Return default data if API call fails
     return {
-      name: 'User',
-      profile_pic: null
+      name: platform === 'instagram' ? 'Instagram User' : 'User',
+      profile_pic: null,
+      platform: platform
     };
   }
 }
 
 // Send typing indicator function
-async function sendTypingIndicator(recipientId, isTyping = true) {
-  const messageData = {
-    recipient: { id: recipientId },
-    sender_action: isTyping ? "typing_on" : "typing_off"
-  };
-  
+async function sendTypingIndicator(recipientId, isTyping = true, platform = 'facebook') {
   try {
-    const response = await axios.post(
-      `${FACEBOOK_API_URL}/me/messages`,
-      messageData,
-      { params: { access_token: process.env.PAGE_ACCESS_TOKEN } }
-    );
-    console.log(`Typing indicator ${isTyping ? 'on' : 'off'} sent`);
-    return response.data;
+    return await platformAdapter.sendTypingIndicator(recipientId, isTyping, platform);
   } catch (error) {
-    console.error('Error sending typing indicator:', error.response?.data || error.message);
+    console.error('Error sending typing indicator:', error);
     // Don't throw - typing indicators are not critical
   }
 }
 
 // Simple send message function
-async function sendMessage(recipientId, text) {
-  const messageData = {
-    recipient: { id: recipientId },
-    message: { text }
-  };
-  
+async function sendMessage(recipientId, text, platform = 'facebook') {
   try {
-    const response = await axios.post(
-      `${FACEBOOK_API_URL}/me/messages`,
-      messageData,
-      { params: { access_token: process.env.PAGE_ACCESS_TOKEN } }
-    );
-    console.log('Message sent successfully');
-    return response.data;
+    return await platformAdapter.sendMessage(recipientId, text, platform);
   } catch (error) {
-    console.error('Error sending message:', error.response?.data || error.message);
+    console.error('Error sending message:', error);
     throw error;
   }
 }
 
 // Send multiple messages with delays
-async function sendMultipleMessages(recipientId, messages) {
+async function sendMultipleMessages(recipientId, messages, platform = 'facebook') {
   for (let i = 0; i < messages.length; i++) {
     const { text, waitAfter = 0 } = messages[i];
     
     // Send typing indicator before each message
-    await sendTypingIndicator(recipientId, true);
+    await sendTypingIndicator(recipientId, true, platform);
     
     // Fixed delay to show typing (5000ms)
     await delay(5000);
     
     // Send the actual message
-    await sendMessage(recipientId, text);
+    await sendMessage(recipientId, text, platform);
     
     // Wait after message if specified and not the last message
     if (waitAfter > 0 && i < messages.length - 1) {
@@ -211,7 +176,7 @@ function parseMultiMessageResponse(response) {
 }
 
 // Process batched messages after timeout
-async function processBatchedMessages(senderId) {
+async function processBatchedMessages(senderId, platform = 'facebook') {
   const batch = messageBatches.get(senderId);
   if (!batch || (batch.messages.length === 0 && batch.images.length === 0)) {
     console.log(`No messages to process for ${senderId}`);
@@ -228,17 +193,17 @@ async function processBatchedMessages(senderId) {
   const combinedMessage = batch.messages.join('\n');
   const allImages = batch.images;
   
-  console.log(`Processing batch for ${senderId}: ${batch.messages.length} messages, ${allImages.length} images`);
+  console.log(`Processing batch for ${senderId} on ${platform}: ${batch.messages.length} messages, ${allImages.length} images`);
   
   try {
     const startTime = Date.now();
     
     // Fetch and save user profile
-    const userProfile = await getUserProfile(senderId);
-    await db.saveUser(senderId, userProfile);
+    const userProfile = await getUserProfile(senderId, platform);
+    await db.saveUser(senderId, userProfile, platform);
     
     // Get conversation history
-    const history = await db.getConversationHistory(senderId, 15);
+    const history = await db.getConversationHistory(senderId, 15, platform);
     
     // Generate AI response with retry logic
     let response = '';
@@ -276,11 +241,11 @@ async function processBatchedMessages(senderId) {
     
     if (messages.length > 1) {
       // Multiple messages - send with delays
-      await sendMultipleMessages(senderId, messages);
+      await sendMultipleMessages(senderId, messages, platform);
       
       // Save all messages to conversation history
       const fullResponse = messages.map(m => m.text).join(' ');
-      await db.saveConversation(senderId, combinedMessage, fullResponse);
+      await db.saveConversation(senderId, combinedMessage, fullResponse, platform);
       
       // Record metrics and send to admin
       const responseTime = Date.now() - startTime;
@@ -294,8 +259,8 @@ async function processBatchedMessages(senderId) {
       });
     } else {
       // Single message - use consistent message format
-      await sendMessage(senderId, messages[0].text);
-      await db.saveConversation(senderId, combinedMessage, messages[0].text);
+      await sendMessage(senderId, messages[0].text, platform);
+      await db.saveConversation(senderId, combinedMessage, messages[0].text, platform);
       
       // Record metrics and send to admin
       const responseTime = Date.now() - startTime;
@@ -311,7 +276,7 @@ async function processBatchedMessages(senderId) {
     
   } catch (error) {
     console.error('Error processing batched messages:', error);
-    await sendMessage(senderId, 'Sorry, I encountered an error. Please try again or call us at +65 6019 0775.');
+    await sendMessage(senderId, 'Sorry, I encountered an error. Please try again or call us at +65 6019 0775.', platform);
   }
 }
 
@@ -321,6 +286,7 @@ async function handleMessage(event) {
   const messageText = event.message?.text;
   const messageAttachments = event.message?.attachments;
   const messageId = event.message?.mid;
+  const platform = event.platform || 'facebook'; // Get platform from event
   
   // Check if message has neither text nor attachments
   if (!messageText && !messageAttachments) {
@@ -334,7 +300,7 @@ async function handleMessage(event) {
     if (!botStatus.bot_enabled || botStatus.admin_takeover) {
       console.log(`Bot disabled for user ${senderId} - admin takeover active`);
       // Still save the message to database for admin to see
-      await db.saveConversation(senderId, messageText || '[Image]', '', true);
+      await db.saveConversation(senderId, messageText || '[Image]', '', platform, true);
       // Emit to admin interface via WebSocket if connected
       if (global.adminSocketClient) {
         global.adminSocketClient.emit('user-message-while-disabled', {
@@ -419,7 +385,7 @@ async function handleMessage(event) {
       
       // Set 30-second timer to process batch
       const timer = setTimeout(() => {
-        processBatchedMessages(senderId);
+        processBatchedMessages(senderId, platform);
       }, BATCH_TIMEOUT_MS);
       
       messageBatches.get(senderId).timer = timer;
@@ -440,7 +406,7 @@ async function handleMessage(event) {
   } catch (error) {
     console.error('Error adding message to batch:', error);
     // If batching fails, process immediately as fallback
-    await processBatchedMessages(senderId);
+    await processBatchedMessages(senderId, platform);
   }
 }
 
@@ -448,6 +414,7 @@ async function handleMessage(event) {
 async function handlePostback(event) {
   const senderId = event.sender.id;
   const payload = event.postback.payload;
+  const platform = event.platform || 'facebook';
   
   try {
     let response = '';
@@ -465,8 +432,8 @@ How can I help you today?`;
         response = `Thanks for clicking! How can I help you?`;
     }
     
-    await sendMessage(senderId, response);
-    await db.saveConversation(senderId, `[Clicked: ${payload}]`, response);
+    await sendMessage(senderId, response, platform);
+    await db.saveConversation(senderId, `[Clicked: ${payload}]`, response, platform);
     
   } catch (error) {
     console.error('Error handling postback:', error);

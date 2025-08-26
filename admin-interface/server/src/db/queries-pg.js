@@ -13,6 +13,7 @@ const queries = {
           u.id,
           u.name,
           u.profile_pic,
+          u.platform,
           u.created_at,
           u.last_interaction,
           u.bot_enabled,
@@ -106,6 +107,7 @@ const queries = {
           c.user_id,
           c.message,
           c.response,
+          c.platform,
           c.timestamp,
           CASE 
             WHEN c.is_from_user IS NOT NULL THEN c.is_from_user

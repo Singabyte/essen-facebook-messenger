@@ -24,7 +24,9 @@ import {
   Message, 
   Chat as ChatIcon,
   SmartToy as BotIcon,
-  Close as CloseIcon 
+  Close as CloseIcon,
+  Facebook as FacebookIcon,
+  Instagram as InstagramIcon 
 } from '@mui/icons-material'
 import DataTable from '../components/DataTable'
 import MessengerChat from '../components/MessengerChat'
@@ -140,6 +142,20 @@ function Users() {
           </Avatar>
           {value || 'Unknown User'}
         </Box>
+      ),
+    },
+    {
+      field: 'platform',
+      headerName: 'Platform',
+      minWidth: 120,
+      render: (value, row) => (
+        <Chip
+          size="small"
+          icon={value === 'instagram' ? <InstagramIcon /> : <FacebookIcon />}
+          label={value === 'instagram' ? 'Instagram' : 'Facebook'}
+          color={value === 'instagram' ? 'secondary' : 'primary'}
+          variant="outlined"
+        />
       ),
     },
     {
