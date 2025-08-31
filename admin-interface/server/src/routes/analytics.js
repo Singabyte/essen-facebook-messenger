@@ -248,7 +248,11 @@ router.get('/predictions', async (req, res) => {
       SELECT 
         value_segment,
         COUNT(*) as user_count,
-        ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as percentage
+        CASE 
+          WHEN SUM(COUNT(*)) OVER () > 0 
+          THEN ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2)
+          ELSE 0
+        END as percentage
       FROM user_value
       GROUP BY value_segment
       ORDER BY user_count DESC

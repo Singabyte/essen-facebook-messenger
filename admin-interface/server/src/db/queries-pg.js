@@ -430,7 +430,7 @@ const queries = {
           COUNT(*) FILTER (WHERE negative_feedback) as negative_users,
           AVG(total_messages) as avg_messages_per_user,
           AVG(help_requests) as avg_help_requests,
-          ROUND(COUNT(*) FILTER (WHERE positive_feedback) * 100.0 / COUNT(*), 2) as satisfaction_rate
+          ROUND(COUNT(*) FILTER (WHERE positive_feedback) * 100.0 / NULLIF(COUNT(*), 0), 2) as satisfaction_rate
         FROM satisfaction_indicators
       `);
       return result.rows[0] || {};
