@@ -61,7 +61,8 @@ async function handleWebhookMessage(req, res) {
               (event.sender.id.length > 16 || // Instagram Business Account IDs are typically 17-18 digits
                event.is_instagram || 
                entry.id === process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ||
-               entry.id === process.env.INSTAGRAM_ID)) { // Check both for backward compatibility
+               entry.id === '17841467073360819' || // Hard-coded Instagram Business Account ID
+               entry.id === process.env.INSTAGRAM_ID)) { // Check all for compatibility
             isInstagramMessage = true;
             console.log('Detected Instagram message through page object');
             break;

@@ -74,17 +74,34 @@ async function subscribeToInstagramWebhooks(instagramAccountId) {
     log('\n📝 Subscribing to Instagram webhooks...', 'blue');
     
     // Subscribe to the Instagram account
-    const response = await axios.post(
-      `${GRAPH_API_URL}/${instagramAccountId}/subscribed_apps`,
-      {
-        subscribed_fields: 'messages,messaging_postbacks,messaging_seen'
-      },
-      {
-        params: {
-          access_token: INSTAGRAM_ACCESS_TOKEN
+    // Try with Page Access Token first, then Instagram token
+    let response;
+    try {
+      response = await axios.post(
+        `${GRAPH_API_URL}/${instagramAccountId}/subscribed_apps`,
+        {
+          subscribed_fields: 'messages,messaging_postbacks,messaging_seen'
+        },
+        {
+          params: {
+            access_token: PAGE_ACCESS_TOKEN  // Use Page Access Token
+          }
         }
-      }
-    );
+      );
+    } catch (pageTokenError) {
+      log('⚠️  Page Access Token failed, trying Instagram token...', 'yellow');
+      response = await axios.post(
+        `${GRAPH_API_URL}/${instagramAccountId}/subscribed_apps`,
+        {
+          subscribed_fields: 'messages,messaging_postbacks,messaging_seen'
+        },
+        {
+          params: {
+            access_token: INSTAGRAM_ACCESS_TOKEN
+          }
+        }
+      );
+    }
     
     log('✅ Successfully subscribed to Instagram webhooks', 'green');
     log(`Response: ${JSON.stringify(response.data, null, 2)}`, 'yellow');
@@ -115,7 +132,7 @@ async function getCurrentSubscriptions(instagramAccountId) {
       `${GRAPH_API_URL}/${instagramAccountId}/subscribed_apps`,
       {
         params: {
-          access_token: INSTAGRAM_ACCESS_TOKEN
+          access_token: PAGE_ACCESS_TOKEN  // Use Page Access Token as fallback
         }
       }
     );

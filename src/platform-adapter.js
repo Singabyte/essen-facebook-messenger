@@ -10,8 +10,8 @@ class PlatformAdapter {
   // Get the appropriate access token based on platform
   getAccessToken(platform = 'facebook') {
     if (platform === 'instagram') {
-      // Use Instagram access token if available, fallback to page token
-      return process.env.INSTAGRAM_ACCESS_TOKEN || process.env.PAGE_ACCESS_TOKEN;
+      // Use Instagram Page Access Token if available, then Instagram token, then regular page token
+      return process.env.INSTAGRAM_PAGE_ACCESS_TOKEN || process.env.INSTAGRAM_ACCESS_TOKEN || process.env.PAGE_ACCESS_TOKEN;
     }
     return process.env.PAGE_ACCESS_TOKEN;
   }
