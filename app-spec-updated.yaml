@@ -1,0 +1,174 @@
+databases:
+- engine: PG
+  name: db
+  version: "15"
+envs:
+- key: ADMIN_BACKEND_URL
+  scope: RUN_AND_BUILD_TIME
+  value: https://essen-messenger-bot-zxxtw.ondigitalocean.app
+ingress:
+  rules:
+  - component:
+      name: facebook-bot
+    match:
+      path:
+        prefix: /
+  - component:
+      name: admin-api
+    match:
+      path:
+        prefix: /api
+  - component:
+      name: admin-ui
+    match:
+      path:
+        prefix: /admin
+name: essen-messenger-bot
+region: sgp
+services:
+- build_command: npm install
+  environment_slug: node-js
+  envs:
+  - key: NODE_ENV
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  - key: PAGE_ACCESS_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: EAAQXGZAGJDh0BPa9dvUr7ZC77Xh4rRbYcSt2W2eS3PsXCwZAwNzkrvRwM9tLjZADdVl9fZA3EAnLVoRsFyIppnrCGg3tmTppZBeh97okegB2AZBhBwdmkCqnW8gQiEUsP9fxWidzjEBaJoNKhih7Br8ZA49D36ZC1mvbWDzjXZAxcBuqvZCrgZCpIkyY7pzasLewX29Tfgq2JS0ZD
+  - key: VERIFY_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: essen_verify_token_12345
+  - key: APP_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: 454a9cf217ae956cba861b2396101dd8
+  - key: GEMINI_API_KEY
+    scope: RUN_AND_BUILD_TIME
+    value: AIzaSyDjovnKGN-17inztoZjxAZKE4pR20rZBgc
+  - key: DATABASE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: ${db.DATABASE_URL}
+  - key: PORT
+    scope: RUN_AND_BUILD_TIME
+    value: "3000"
+  - key: ADMIN_API_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://essen-messenger-bot-zxxtw.ondigitalocean.app/api
+  - key: APP_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://essen-messenger-bot-zxxtw.ondigitalocean.app
+  - key: TEMPLATE_CACHE_TTL
+    scope: RUN_AND_BUILD_TIME
+    value: "3600"
+  - key: TEMPLATE_CACHE_MAX_SIZE
+    scope: RUN_AND_BUILD_TIME
+    value: "100"
+  - key: TYPING_DELAY_MIN
+    scope: RUN_AND_BUILD_TIME
+    value: "1000"
+  - key: TYPING_DELAY_MAX
+    scope: RUN_AND_BUILD_TIME
+    value: "5000"
+  - key: RESPONSE_DELAY_FACTOR
+    scope: RUN_AND_BUILD_TIME
+    value: "1.2"
+  - key: ENABLE_PERFORMANCE_METRICS
+    scope: RUN_AND_BUILD_TIME
+    value: "true"
+  - key: LOG_LEVEL
+    scope: RUN_AND_BUILD_TIME
+    value: info
+  # Instagram Configuration - UPDATED VALUES
+  - key: INSTAGRAM_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: 2caf536c12e8357a16148ac700d63573
+  - key: INSTAGRAM_ID
+    scope: RUN_AND_BUILD_TIME
+    value: "2323116818118876"  # This is the App ID
+  - key: INSTAGRAM_ACCESS_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: IGAAhA3Mi3ONxBZAFBVMGdiVlZAfcGJYQTZAROXRwZAzFuU1l5MzRsSDBZAYlVQanpsa2tZAMHJhMmFETFNOQjMzRHNrUUVzcFdxUVllME5GQmx5RTMtT29CWmVPbUhuZA0RuVWVzaXVkLUpnVzVLU2ZAuQmJ4V0ZAXRmJHSlJCcFdNXzFncwZDZD
+  - key: INSTAGRAM_BUSINESS_ACCOUNT_ID
+    scope: RUN_AND_BUILD_TIME
+    value: "17841467073360819"  # UPDATED: Correct Instagram Business Account ID for essen.sg
+  - key: INSTAGRAM_PAGE_ACCESS_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: EAAQXGZAGJDh0BPQOcsZCDku5TDg4zgsZAyvesZATwclkaAoVOTmCwkBPJ0BTxgeiPXjQHkxmHU8mI54hOZCUnraMp53s8qfx7snfSzVli1bQXCDiOCuW2TcTPr3ZCZCb4lompITpBQnAlTeB34DFrzJgMd9DNA3As5ctn2bjc0YGu12l1GILADjKq4jfQkucsdz4G8kZCUQZD  # NEW: Instagram-specific token with proper permissions
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: Singabyte/essen-facebook-messenger
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  name: facebook-bot
+  run_command: node src/index.js
+- build_command: npm install
+  environment_slug: node-js
+  envs:
+  - key: NODE_ENV
+    scope: RUN_AND_BUILD_TIME
+    value: production
+  - key: JWT_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: xVmE8Q7F+Rd3YKZPlm9cwXQ7RHLvW8Ij6N2BaMnKt1s=
+  - key: DATABASE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: ${db.DATABASE_URL}
+  - key: PORT
+    scope: RUN_AND_BUILD_TIME
+    value: "4000"
+  - key: FRONTEND_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://essen-messenger-bot-zxxtw.ondigitalocean.app
+  - key: APP_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://essen-messenger-bot-zxxtw.ondigitalocean.app
+  - key: SOCKET_IO_CORS_ORIGIN
+    scope: RUN_AND_BUILD_TIME
+    value: https://essen-messenger-bot-zxxtw.ondigitalocean.app
+  - key: SOCKET_IO_PATH
+    scope: RUN_AND_BUILD_TIME
+    value: /socket.io/
+  - key: ENABLE_METRICS
+    scope: RUN_AND_BUILD_TIME
+    value: "true"
+  - key: LOG_LEVEL
+    scope: RUN_AND_BUILD_TIME
+    value: info
+  - key: BOT_SERVICE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://essen-messenger-bot-zxxtw.ondigitalocean.app
+  - key: PAGE_ACCESS_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: EAAQXGZAGJDh0BPa9dvUr7ZC77Xh4rRbYcSt2W2eS3PsXCwZAwNzkrvRwM9tLjZADdVl9fZA3EAnLVoRsFyIppnrCGg3tmTppZBeh97okegB2AZBhBwdmkCqnW8gQiEUsP9fxWidzjEBaJoNKhih7Br8ZA49D36ZC1mvbWDzjXZAxcBuqvZCrgZCpIkyY7pzasLewX29Tfgq2JS0ZD  # UPDATED: Match facebook-bot token
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: Singabyte/essen-facebook-messenger
+  http_port: 4000
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  name: admin-api
+  run_command: node src/index.js
+  source_dir: admin-interface/server
+static_sites:
+- build_command: npm install && npm run build
+  catchall_document: index.html
+  environment_slug: html
+  envs:
+  - key: VITE_API_URL
+    scope: BUILD_TIME
+    value: https://essen-messenger-bot-zxxtw.ondigitalocean.app/api
+  - key: VITE_SOCKET_URL
+    scope: BUILD_TIME
+    value: https://essen-messenger-bot-zxxtw.ondigitalocean.app
+  - key: VITE_SOCKET_PATH
+    scope: BUILD_TIME
+    value: /api/socket.io/
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: Singabyte/essen-facebook-messenger
+  name: admin-ui
+  output_dir: dist
+  source_dir: admin-interface/client
