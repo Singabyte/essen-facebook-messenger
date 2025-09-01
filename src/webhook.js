@@ -58,9 +58,10 @@ async function handleWebhookMessage(req, res) {
         for (const event of entry.messaging) {
           // Check if sender ID matches Instagram format or has Instagram-specific fields
           if (event.sender && event.sender.id && 
-              (event.sender.id.length > 15 || // Instagram IDs are typically longer
+              (event.sender.id.length > 16 || // Instagram Business Account IDs are typically 17-18 digits
                event.is_instagram || 
-               entry.id === process.env.INSTAGRAM_ID)) {
+               entry.id === process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ||
+               entry.id === process.env.INSTAGRAM_ID)) { // Check both for backward compatibility
             isInstagramMessage = true;
             console.log('Detected Instagram message through page object');
             break;
@@ -220,7 +221,7 @@ async function processInstagramMessages(body) {
                   username: message.from?.username || value.sender?.username
                 },
                 recipient: { 
-                  id: value.metadata?.recipient_id || entry.id || process.env.INSTAGRAM_ID
+                  id: value.metadata?.recipient_id || entry.id || process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || process.env.INSTAGRAM_ID
                 },
                 timestamp: parseInt(message.timestamp) * 1000,
                 message: {

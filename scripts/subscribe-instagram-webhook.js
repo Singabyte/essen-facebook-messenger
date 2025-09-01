@@ -13,10 +13,11 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 // Configuration
-const INSTAGRAM_ID = process.env.INSTAGRAM_ID;
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID; // This should be Instagram Business Account ID, not App ID
+const INSTAGRAM_APP_ID = process.env.INSTAGRAM_ID; // This is the App ID (for backward compatibility)
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || PAGE_ACCESS_TOKEN;
-const APP_ID = process.env.APP_ID || process.env.FACEBOOK_APP_ID;
+const APP_ID = process.env.APP_ID || process.env.FACEBOOK_APP_ID || INSTAGRAM_APP_ID;
 
 const GRAPH_API_VERSION = 'v18.0';
 const GRAPH_API_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -170,21 +171,29 @@ async function main() {
   log('=====================================', 'magenta');
   
   // Check configuration
-  if (!INSTAGRAM_ID && !PAGE_ACCESS_TOKEN) {
+  if (!PAGE_ACCESS_TOKEN) {
     log('\n❌ Missing required configuration:', 'red');
     log('Please set the following in your .env file:', 'yellow');
-    log('  - INSTAGRAM_ID or PAGE_ACCESS_TOKEN', 'yellow');
+    log('  - PAGE_ACCESS_TOKEN (required)', 'yellow');
+    log('  - INSTAGRAM_BUSINESS_ACCOUNT_ID (optional, will auto-detect)', 'yellow');
     log('  - INSTAGRAM_ACCESS_TOKEN (optional, will use PAGE_ACCESS_TOKEN)', 'yellow');
     process.exit(1);
   }
   
   log('\n📋 Configuration:', 'blue');
-  log(`  Instagram ID: ${INSTAGRAM_ID || 'Not set (will auto-detect)'}`, 'yellow');
+  log(`  App ID: ${APP_ID || INSTAGRAM_APP_ID || 'Not set'}`, 'yellow');
+  log(`  Instagram Business Account ID: ${INSTAGRAM_BUSINESS_ACCOUNT_ID || 'Not set (will auto-detect)'}`, 'yellow');
   log(`  Access Token: ${INSTAGRAM_ACCESS_TOKEN ? '✅ Set' : 'Using PAGE_ACCESS_TOKEN'}`, 'yellow');
-  log(`  App ID: ${APP_ID || 'Not set'}`, 'yellow');
   
-  // Check Instagram connection
-  const instagramAccountId = INSTAGRAM_ID || await checkInstagramConnection();
+  if (INSTAGRAM_APP_ID && !INSTAGRAM_BUSINESS_ACCOUNT_ID) {
+    log('\n⚠️  Warning: INSTAGRAM_ID appears to be an App ID, not an Instagram Business Account ID', 'yellow');
+    log('  App IDs are typically 16 digits, Instagram account IDs are typically 17-18 digits', 'yellow');
+    log('  Will auto-detect the correct Instagram Business Account ID...', 'yellow');
+  }
+  
+  // Check Instagram connection - always check even if ID is provided to verify it's correct
+  const detectedAccountId = await checkInstagramConnection();
+  const instagramAccountId = INSTAGRAM_BUSINESS_ACCOUNT_ID || detectedAccountId;
   
   if (!instagramAccountId) {
     log('\n❌ Could not find Instagram account ID', 'red');

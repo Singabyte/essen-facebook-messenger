@@ -13,10 +13,11 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
 // Configuration
-const INSTAGRAM_ID = process.env.INSTAGRAM_ID;
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID; // This should be Instagram Business Account ID, not App ID
+const INSTAGRAM_APP_ID = process.env.INSTAGRAM_ID; // This is the App ID (for backward compatibility)
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const INSTAGRAM_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN || PAGE_ACCESS_TOKEN;
-const APP_ID = process.env.APP_ID || process.env.FACEBOOK_APP_ID;
+const APP_ID = process.env.APP_ID || process.env.FACEBOOK_APP_ID || INSTAGRAM_APP_ID;
 const APP_SECRET = process.env.APP_SECRET;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://essen-messenger-bot-zxxtw.ondigitalocean.app/webhook';
 
@@ -44,7 +45,8 @@ function checkEnvironment() {
   log('==============================', 'cyan');
   
   const configs = [
-    { name: 'INSTAGRAM_ID', value: INSTAGRAM_ID, required: false },
+    { name: 'INSTAGRAM_BUSINESS_ACCOUNT_ID', value: INSTAGRAM_BUSINESS_ACCOUNT_ID, required: false },
+    { name: 'INSTAGRAM_ID (App ID)', value: INSTAGRAM_APP_ID, required: false },
     { name: 'INSTAGRAM_ACCESS_TOKEN', value: INSTAGRAM_ACCESS_TOKEN, required: false },
     { name: 'PAGE_ACCESS_TOKEN', value: PAGE_ACCESS_TOKEN, required: true },
     { name: 'APP_SECRET', value: APP_SECRET, required: true },
@@ -282,7 +284,7 @@ async function sendTestWebhook() {
       object: 'instagram',
       entry: [
         {
-          id: INSTAGRAM_ID || '123456789',
+          id: INSTAGRAM_BUSINESS_ACCOUNT_ID || '123456789',
           time: Date.now(),
           messaging: [
             {
@@ -290,7 +292,7 @@ async function sendTestWebhook() {
                 id: 'test_user_verification'
               },
               recipient: {
-                id: INSTAGRAM_ID || '123456789'
+                id: INSTAGRAM_BUSINESS_ACCOUNT_ID || '123456789'
               },
               timestamp: Date.now(),
               message: {
@@ -341,7 +343,12 @@ async function main() {
   }
   
   // Get Instagram account
-  const instagramId = INSTAGRAM_ID || await getInstagramAccount();
+  const instagramId = INSTAGRAM_BUSINESS_ACCOUNT_ID || await getInstagramAccount();
+  
+  if (INSTAGRAM_APP_ID && !INSTAGRAM_BUSINESS_ACCOUNT_ID) {
+    log('\n⚠️  Warning: INSTAGRAM_ID appears to be an App ID (16 digits), not Instagram Business Account ID', 'yellow');
+    log('   Instagram Business Account IDs are typically 17-18 digits', 'yellow');
+  }
   
   if (!instagramId) {
     log('\n❌ Could not find Instagram account', 'red');
