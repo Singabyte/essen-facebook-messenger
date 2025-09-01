@@ -36,6 +36,39 @@ app.use((req, res, next) => {
   }
 });
 
+// Store recent webhooks for debugging
+const recentWebhooks = [];
+const MAX_WEBHOOKS = 20;
+
+// Debug endpoint to capture all webhooks
+app.post('/webhook-debug', express.json(), (req, res) => {
+  const webhookData = {
+    timestamp: new Date().toISOString(),
+    headers: req.headers,
+    body: req.body,
+    query: req.query
+  };
+  
+  // Store webhook
+  recentWebhooks.unshift(webhookData);
+  if (recentWebhooks.length > MAX_WEBHOOKS) {
+    recentWebhooks.pop();
+  }
+  
+  console.log('[WEBHOOK DEBUG]', JSON.stringify(webhookData, null, 2));
+  
+  // Always respond with 200 to acknowledge receipt
+  res.status(200).send('DEBUG_RECEIVED');
+});
+
+// Endpoint to view recent webhooks
+app.get('/debug/webhooks', (req, res) => {
+  res.json({
+    count: recentWebhooks.length,
+    webhooks: recentWebhooks
+  });
+});
+
 // Routes - mount webhook at /webhook to match Facebook configuration
 app.use('/webhook', webhook);
 

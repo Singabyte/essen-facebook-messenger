@@ -33,20 +33,68 @@ async function handleWebhookMessage(req, res) {
   
   console.log(`[${new Date().toISOString()}] Webhook received:`, JSON.stringify(body, null, 2));
   
-  // Verify webhook signature
-  if (!verifyWebhookSignature(req)) {
+  // Log webhook headers for debugging Instagram
+  console.log('Webhook headers:', {
+    'x-hub-signature-256': req.headers['x-hub-signature-256'] ? 'present' : 'missing',
+    'content-type': req.headers['content-type']
+  });
+  
+  // Temporarily skip signature verification for debugging
+  // TODO: Re-enable after confirming Instagram messages are arriving
+  const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === 'true';
+  
+  if (!skipVerification && !verifyWebhookSignature(req)) {
     console.error('Invalid webhook signature');
+    console.error('Expected APP_SECRET present:', !!process.env.APP_SECRET);
     return res.sendStatus(403);
   }
   
+  // Check if this is an Instagram message coming through page object
+  let isInstagramMessage = false;
+  if (body.object === 'page' && body.entry && body.entry.length > 0) {
+    // Check for Instagram-specific fields
+    for (const entry of body.entry) {
+      if (entry.messaging && entry.messaging.length > 0) {
+        for (const event of entry.messaging) {
+          // Check if sender ID matches Instagram format or has Instagram-specific fields
+          if (event.sender && event.sender.id && 
+              (event.sender.id.length > 15 || // Instagram IDs are typically longer
+               event.is_instagram || 
+               entry.id === process.env.INSTAGRAM_ID)) {
+            isInstagramMessage = true;
+            console.log('Detected Instagram message through page object');
+            break;
+          }
+        }
+      }
+      // Also check for Instagram 'changes' format
+      if (entry.changes) {
+        for (const change of entry.changes) {
+          if (change.field === 'messages' || change.field === 'instagram_messages') {
+            isInstagramMessage = true;
+            console.log('Detected Instagram message through changes format');
+            break;
+          }
+        }
+      }
+    }
+  }
+  
   // Handle both Facebook Messenger and Instagram messages
-  if (body.object === 'page') {
-    // Facebook Messenger messages
-    await processFacebookMessages(body, 'facebook');
-    res.status(200).send('EVENT_RECEIVED');
-  } else if (body.object === 'instagram') {
-    // Instagram messages
+  if (body.object === 'instagram') {
+    // Direct Instagram webhook
+    console.log('Processing Instagram webhook (object: instagram)');
     await processInstagramMessages(body);
+    res.status(200).send('EVENT_RECEIVED');
+  } else if (body.object === 'page' && isInstagramMessage) {
+    // Instagram message coming through page webhook
+    console.log('Processing Instagram message through page webhook');
+    await processInstagramMessages(body);
+    res.status(200).send('EVENT_RECEIVED');
+  } else if (body.object === 'page') {
+    // Regular Facebook Messenger messages
+    console.log('Processing Facebook Messenger webhook');
+    await processFacebookMessages(body, 'facebook');
     res.status(200).send('EVENT_RECEIVED');
   } else {
     // Not a supported subscription
@@ -104,14 +152,24 @@ async function processFacebookMessages(body, platform = 'facebook') {
 
 // Process Instagram messages
 async function processInstagramMessages(body) {
-  // Instagram webhook structure is similar but with some differences
+  console.log('Processing Instagram messages with body object:', body.object);
+  
+  // Instagram webhook structure can vary
   for (const entry of body.entry) {
-    console.log(`Processing Instagram entry`);
+    console.log(`Processing Instagram entry ID: ${entry.id}, Time: ${entry.time}`);
     
-    // Instagram messages come in entry.messaging array (similar to Facebook)
+    // Format 1: Instagram messages in entry.messaging array (similar to Facebook)
     if (entry.messaging && entry.messaging.length > 0) {
+      console.log(`Found ${entry.messaging.length} messaging events`);
+      
       for (const webhookEvent of entry.messaging) {
-        const senderId = webhookEvent.sender.id;
+        const senderId = webhookEvent.sender?.id;
+        
+        // Skip if no sender ID
+        if (!senderId) {
+          console.log('No sender ID found, skipping event');
+          continue;
+        }
         
         // Add platform information
         webhookEvent.platform = 'instagram';
@@ -119,40 +177,64 @@ async function processInstagramMessages(body) {
         try {
           if (webhookEvent.message && !webhookEvent.message.is_echo) {
             // Handle Instagram message
-            console.log(`Instagram message from ${senderId}: ${webhookEvent.message.text}`);
+            console.log(`Instagram message from ${senderId}:`, {
+              text: webhookEvent.message.text,
+              mid: webhookEvent.message.mid,
+              attachments: webhookEvent.message.attachments?.length || 0
+            });
             await messageHandler.handleMessage(webhookEvent);
           } else if (webhookEvent.postback) {
             // Instagram postback (from quick replies, etc.)
+            console.log(`Instagram postback from ${senderId}: ${webhookEvent.postback.payload}`);
             await messageHandler.handlePostback(webhookEvent);
+          } else if (webhookEvent.message?.is_echo) {
+            console.log(`Skipping echo message from ${senderId}`);
           }
         } catch (handlerError) {
           console.error('Instagram message handler error:', handlerError);
-          // Continue processing
+          // Continue processing other messages
         }
       }
     }
     
-    // Instagram may also have 'changes' array for other events
-    if (entry.changes) {
+    // Format 2: Instagram messages in entry.changes array (WhatsApp Business API format)
+    if (entry.changes && entry.changes.length > 0) {
+      console.log(`Found ${entry.changes.length} change events`);
+      
       for (const change of entry.changes) {
-        if (change.field === 'messages' && change.value) {
-          // Handle Instagram Direct Messages
+        console.log(`Processing change field: ${change.field}`);
+        
+        if ((change.field === 'messages' || change.field === 'instagram_messages') && change.value) {
+          // Handle Instagram Direct Messages in WhatsApp format
           const value = change.value;
+          
+          // Log the entire value structure for debugging
+          console.log('Instagram change value structure:', JSON.stringify(value, null, 2));
           
           if (value.messages && value.messages.length > 0) {
             for (const message of value.messages) {
+              // Build webhook event in standard format
               const instagramEvent = {
-                sender: { id: message.from.id },
-                recipient: { id: value.metadata.recipient_id || entry.id },
+                sender: { 
+                  id: message.from?.id || value.sender?.id,
+                  username: message.from?.username || value.sender?.username
+                },
+                recipient: { 
+                  id: value.metadata?.recipient_id || entry.id || process.env.INSTAGRAM_ID
+                },
                 timestamp: parseInt(message.timestamp) * 1000,
                 message: {
                   mid: message.id,
-                  text: message.text?.body || ''
+                  text: message.text?.body || message.text || '',
+                  attachments: message.attachments || []
                 },
                 platform: 'instagram'
               };
               
-              console.log(`Instagram DM from ${message.from.username || message.from.id}: ${message.text?.body}`);
+              console.log(`Instagram DM from ${instagramEvent.sender.username || instagramEvent.sender.id}:`, {
+                text: instagramEvent.message.text,
+                attachments: instagramEvent.message.attachments.length
+              });
               
               try {
                 await messageHandler.handleMessage(instagramEvent);
@@ -161,7 +243,35 @@ async function processInstagramMessages(body) {
               }
             }
           }
+          
+          // Also check for other message formats
+          if (value.messaging_product === 'instagram' && value.entry) {
+            console.log('Found nested Instagram entry in changes');
+            // Recursively process nested entries
+            await processInstagramMessages({ object: 'instagram', entry: [value.entry] });
+          }
         }
+      }
+    }
+    
+    // Format 3: Direct message format (some Instagram business accounts)
+    if (entry.message) {
+      console.log('Found direct message format');
+      const instagramEvent = {
+        sender: { id: entry.sender_id || entry.from?.id },
+        recipient: { id: entry.recipient_id || entry.id },
+        timestamp: entry.timestamp || Date.now(),
+        message: {
+          mid: entry.message_id || entry.id,
+          text: entry.message.text || entry.text || ''
+        },
+        platform: 'instagram'
+      };
+      
+      try {
+        await messageHandler.handleMessage(instagramEvent);
+      } catch (error) {
+        console.error('Error handling direct Instagram message:', error);
       }
     }
   }
