@@ -59,6 +59,9 @@ class PlatformAdapter {
     const apiUrl = this.getMessageApiUrl(platform);
     const accessToken = this.getAccessToken(platform);
     
+    console.log(`Sending ${platform} message to ${recipientId}`);
+    console.log(`Using token: ${accessToken ? accessToken.substring(0, 20) + '...' : 'none'}`);
+    
     try {
       const response = await axios.post(
         apiUrl,
@@ -73,10 +76,21 @@ class PlatformAdapter {
         }
       );
       
-      console.log(`Message sent successfully via ${platform}`);
+      console.log(`Message sent successfully via ${platform}:`, response.data);
       return response.data;
     } catch (error) {
-      console.error(`Error sending ${platform} message:`, error.response?.data || error.message);
+      console.error(`Error sending ${platform} message:`, {
+        recipientId,
+        error: error.response?.data || error.message,
+        status: error.response?.status
+      });
+      
+      // Don't throw for Instagram errors to prevent webhook failures
+      if (platform === 'instagram' && error.response?.status === 400) {
+        console.error('Instagram API error - user may need to message first or account may be restricted');
+        return null;
+      }
+      
       throw error;
     }
   }

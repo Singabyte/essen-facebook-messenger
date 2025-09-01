@@ -54,17 +54,24 @@ async function handleWebhookMessage(req, res) {
   if (body.object === 'page' && body.entry && body.entry.length > 0) {
     // Check for Instagram-specific fields
     for (const entry of body.entry) {
+      // Check if the entry ID matches Instagram Business Account
+      if (entry.id === '17841467073360819' || 
+          entry.id === process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID) {
+        isInstagramMessage = true;
+        console.log('Detected Instagram entry by account ID:', entry.id);
+      }
+      
       if (entry.messaging && entry.messaging.length > 0) {
         for (const event of entry.messaging) {
           // Check if sender ID matches Instagram format or has Instagram-specific fields
           if (event.sender && event.sender.id && 
-              (event.sender.id.length > 16 || // Instagram Business Account IDs are typically 17-18 digits
+              (event.sender.id.length > 16 || // Instagram user IDs are typically 17+ digits
                event.is_instagram || 
+               event.sender.id.startsWith('178') || // Instagram IDs often start with 178
                entry.id === process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ||
-               entry.id === '17841467073360819' || // Hard-coded Instagram Business Account ID
-               entry.id === process.env.INSTAGRAM_ID)) { // Check all for compatibility
+               entry.id === '17841467073360819')) { // Hard-coded Instagram Business Account ID
             isInstagramMessage = true;
-            console.log('Detected Instagram message through page object');
+            console.log('Detected Instagram message through page object - sender:', event.sender.id);
             break;
           }
         }
@@ -156,6 +163,12 @@ async function processFacebookMessages(body, platform = 'facebook') {
 async function processInstagramMessages(body) {
   console.log('Processing Instagram messages with body object:', body.object);
   
+  // Validate body structure
+  if (!body.entry || !Array.isArray(body.entry)) {
+    console.error('Invalid Instagram webhook body - missing entry array');
+    return;
+  }
+  
   // Instagram webhook structure can vary
   for (const entry of body.entry) {
     console.log(`Processing Instagram entry ID: ${entry.id}, Time: ${entry.time}`);
@@ -184,7 +197,20 @@ async function processInstagramMessages(body) {
               mid: webhookEvent.message.mid,
               attachments: webhookEvent.message.attachments?.length || 0
             });
-            await messageHandler.handleMessage(webhookEvent);
+            
+            // Ensure all required fields are present
+            if (!webhookEvent.sender || !webhookEvent.sender.id) {
+              console.error('Missing sender information in Instagram webhook');
+              continue;
+            }
+            
+            // Call message handler with error boundary
+            try {
+              await messageHandler.handleMessage(webhookEvent);
+            } catch (msgError) {
+              console.error('Error in messageHandler.handleMessage:', msgError);
+              console.error('Stack trace:', msgError.stack);
+            }
           } else if (webhookEvent.postback) {
             // Instagram postback (from quick replies, etc.)
             console.log(`Instagram postback from ${senderId}: ${webhookEvent.postback.payload}`);
@@ -194,6 +220,7 @@ async function processInstagramMessages(body) {
           }
         } catch (handlerError) {
           console.error('Instagram message handler error:', handlerError);
+          console.error('Full error:', handlerError.stack);
           // Continue processing other messages
         }
       }
