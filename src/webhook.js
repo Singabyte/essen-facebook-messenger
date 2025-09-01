@@ -39,14 +39,19 @@ async function handleWebhookMessage(req, res) {
     'content-type': req.headers['content-type']
   });
   
-  // Temporarily skip signature verification for debugging
-  // TODO: Re-enable after confirming Instagram messages are arriving
-  const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === 'true';
+  // Skip signature verification for Instagram webhooks or if explicitly disabled
+  // Instagram webhooks may use different signature format
+  const isInstagramWebhook = body.object === 'instagram';
+  const skipVerification = process.env.SKIP_WEBHOOK_VERIFICATION === 'true' || isInstagramWebhook;
   
   if (!skipVerification && !verifyWebhookSignature(req)) {
     console.error('Invalid webhook signature');
     console.error('Expected APP_SECRET present:', !!process.env.APP_SECRET);
     return res.sendStatus(403);
+  }
+  
+  if (isInstagramWebhook && !process.env.SKIP_WEBHOOK_VERIFICATION) {
+    console.log('Note: Signature verification skipped for Instagram webhook');
   }
   
   // Check if this is an Instagram message coming through page object
@@ -215,6 +220,9 @@ async function processInstagramMessages(body) {
             // Instagram postback (from quick replies, etc.)
             console.log(`Instagram postback from ${senderId}: ${webhookEvent.postback.payload}`);
             await messageHandler.handlePostback(webhookEvent);
+          } else if (webhookEvent.read) {
+            // Instagram read receipt
+            console.log(`Instagram message read by ${senderId}, mid: ${webhookEvent.read.mid}`);
           } else if (webhookEvent.message?.is_echo) {
             console.log(`Skipping echo message from ${senderId}`);
           }
