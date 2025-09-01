@@ -5,7 +5,7 @@ const { pool } = require('../db/connection-pg');
 // Get all conversations
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 20, userId, startDate, endDate } = req.query;
+    const { page = 1, limit = 20, userId, platform, startDate, endDate } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
     
     let query = `
@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
         c.message,
         c.response,
         c.timestamp,
+        c.platform,
         u.name as user_name,
         u.profile_pic
       FROM conversations c
@@ -30,6 +31,11 @@ router.get('/', async (req, res) => {
       query += ` AND c.user_id = $${++paramCount}`;
     }
     
+    if (platform) {
+      params.push(platform);
+      query += ` AND c.platform = $${++paramCount}`;
+    }
+    
     if (startDate) {
       params.push(startDate);
       query += ` AND c.timestamp >= $${++paramCount}`;
@@ -41,7 +47,7 @@ router.get('/', async (req, res) => {
     }
     
     // Get total count
-    const countQuery = query.replace('SELECT c.id, c.user_id, c.message, c.response, c.timestamp, u.name as user_name, u.profile_pic', 'SELECT COUNT(*) as total');
+    const countQuery = query.replace('SELECT c.id, c.user_id, c.message, c.response, c.timestamp, c.platform, u.name as user_name, u.profile_pic', 'SELECT COUNT(*) as total');
     const countResult = await pool.query(countQuery, params);
     const total = parseInt(countResult.rows[0]?.total || 0);
     
@@ -84,6 +90,7 @@ router.get('/search', async (req, res) => {
         c.message,
         c.response,
         c.timestamp,
+        c.platform,
         u.name as user_name,
         u.profile_pic
       FROM conversations c
